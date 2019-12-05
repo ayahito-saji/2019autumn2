@@ -73,7 +73,7 @@ write           return WRITE;
     return IDENT;
 }
 
-[ \t\n];
+[\s\t\n];
 
 . {
     fprintf(stderr, "cannot handle such characters: %s\n", yytext);
