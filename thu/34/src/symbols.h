@@ -9,7 +9,7 @@ enum {
     DIV,
     DO,
     ELSE,
-    SEND,                       /* end */
+    END,                       /* end */
     FOR,
     FORWARD,
     FUNCTION,
