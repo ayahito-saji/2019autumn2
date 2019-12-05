@@ -19,25 +19,47 @@ typedef union {
  * yylval という変数名にするのは，yacc との融合時にプログラムの変更を
  * 最小限にするためである．
  */
-token yylval; 
- 
+token yylval;
+
 %}
-%option yylineno                  /*行番号を保持する変数*/
+%option yylineno
 %%
 
 begin           return SBEGIN;
 div             return DIV;
-
-     ・・・
-
+do              return DO;
+else            return ELSE;
+end             return END;
+for             return FOR;
+forward         return FORWARD;
+function        return FUNCTION;
+if              return IF;
+procedure       return PROCEDURE;
+program         return PROGRAM;
+read            return READ;
+then            return THEN;
+to              return TO;
+var             return VAR;
 while           return WHILE;
 write           return WRITE;
 
 "+"             return PLUS;
 "-"             return MINUS;
-
-     ・・・
-
+"*"             return MULT;
+"="             return EQ;
+"<>"            return NEQ;
+"<="            return LE;
+"<"             return LT;
+">="            return GE;
+">"             return GT;
+"("             return LPAREN;
+")"             return RPAREN;
+"["             return LBRACE;
+"]"             return RBRACE;
+","             return COMMA;
+";"             return SEMICOLON;
+":"             return COLON;
+".."            return INTERVAL;
 "."             return PERIOD;
 ":="            return ASSIGN;
 
@@ -51,7 +73,7 @@ write           return WRITE;
     return IDENT;
 }
 
-[ \t\n]         ;
+[ \t\n];
 
 . {
     fprintf(stderr, "cannot handle such characters: %s\n", yytext);
@@ -62,7 +84,7 @@ write           return WRITE;
 main(int argc, char *argv[]) {
     FILE *fp;
     int tok;
-    
+
     if (argc != 2) {
         fprintf(stderr, "usage: %s filename\n", argv[0]);
         exit(1);
@@ -99,55 +121,3 @@ main(int argc, char *argv[]) {
         }
     }
 }
-\end{verbatim}
-
-\section{symbols.h}
-
-\begin{verbatim}
-/*
- * symbols.h
- *
- * 注意: このファイルは課題1 でのみ使用する
- */
-
-enum {
-    SBEGIN = 1,                  /* begin */
-    DIV,
-    DO,
-    ELSE,
-    SEND,                       /* end */
-    FOR,
-    FORWARD,
-    FUNCTION,
-    IF,
-    PROCEDURE,
-    PROGRAM,
-    READ,
-    THEN,
-    TO,
-    VAR,
-    WHILE,
-    WRITE,
-
-    PLUS,
-    MINUS,
-    MULT,
-    EQ,                         /* = */
-    NEQ,                        /* <> */
-    LE,                         /* <= */
-    LT,                         /* < */
-    GE,                         /* >= */
-    GT,                         /* > */
-    LPAREN,                     /* ( */
-    RPAREN,                     /* ) */
-    LBRACKET,                   /* [ */
-    RBRACKET,                   /* ] */
-    COMMA,
-    SEMICOLON,
-    COLON,
-    INTERVAL,                   /* .. */
-    PERIOD,
-    ASSIGN,                     /* := */
-    NUMBER,
-    IDENT,
-};
