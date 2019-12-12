@@ -3,7 +3,7 @@ LEX = lex
 YACC = yacc -d
 
 lex.yy.c: scanner.l
-	$(lex) scanner.l
+	$(LEX) scanner.l
 
 scanner: lex.yy.c
 	$(CC) lex.yy.c -ll -o scanner
