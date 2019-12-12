@@ -11,8 +11,8 @@ scanner: lex.yy.c
 y.tab.c: parser.y
 	$(YACC) parser.y
 
-parser: y.tab.c lex.yy.c
-	$(CC) y.tab.c lex.yy.c -ll -o parser
+parser: y.tab.c lex.yy.c symbol_table.c symbol_table.h
+	$(CC) y.tab.c lex.yy.c symbol_table.c -ll -o parser
 
 clean:
 	rm -rf *.o

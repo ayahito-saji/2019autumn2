@@ -8,28 +8,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "symbol_table.h"
 
 extern int yylineno;
 extern char *yytext;
-
-typedef enum {
-  GLOBAL_VAR,
-  LOCAL_VAR,
-  PROC_NAME,
-  CONSTANT
-} Scope;
-
-typedef struct {
-  char *var_name;
-  int reg;
-  Scope scope;
-  
-} SymbolTable;
-
-/* define stack and stack length */
-SymbolTable symbol_table[1024];
-int symbol_table_length = 0;
-int is_local_variable = 0;
 
 %}
 
@@ -92,11 +74,11 @@ subprog_decl
         ;
 
 proc_decl
-        : PROCEDURE proc_name SEMICOLON inblock { delete();is_local_variable = 0; }
+        : PROCEDURE proc_name SEMICOLON inblock { delete(); }
         ;
 
 proc_name
-        : IDENT { insert($1, PROC_NAME); is_local_variable = 1; }
+        : IDENT { insert($1, PROC_NAME); }
         ;
 
 inblock
@@ -204,119 +186,11 @@ arg_list
         ;
 
 id_list
-        : IDENT { insert($1, is_local_variable ? LOCAL_VAR : GLOBAL_VAR); }
-        | id_list COMMA IDENT { insert($3, is_local_variable ? LOCAL_VAR : GLOBAL_VAR); }
+        : IDENT { insert($1, UNDEFINED_VAR); }
+        | id_list COMMA IDENT { insert($3, UNDEFINED_VAR); }
 
 %% 
 yyerror(char *s)
 {
   fprintf(stderr, "%s(%d: \'%s\')\n", s, yylineno, yytext);
-}
-
-void insert(char *vn, Scope scope)
-{
-  int i;
-  char *var_name;
-
-  var_name = (char *)malloc(128);
-  strcpy(var_name, vn);
-
-  // show action
-  fprintf(stderr, "variable \'%s\' inserted!!(%d)\n", var_name, yylineno);
-  fprintf(stderr, "--------------------------\n");
-
-
-  // assignment to table
-  symbol_table[symbol_table_length].var_name = var_name;
-  symbol_table[symbol_table_length].reg = symbol_table_length + 2;
-  symbol_table[symbol_table_length].scope = scope;
-  symbol_table_length++;
-
-  // show symbol table
-  for (i=0;i<symbol_table_length;i++)
-  {
-    switch (symbol_table[i].scope)
-    {
-      case GLOBAL_VAR:
-        fprintf(stderr, "%d. %s (GLOBAL_VAR, %d)\n", i, symbol_table[i].var_name, symbol_table[i].reg);
-        break;
-
-      case LOCAL_VAR:
-        fprintf(stderr, "%d. %s (LOCAL_VAR, %d)\n", i, symbol_table[i].var_name, symbol_table[i].reg);
-        break;
-
-      case PROC_NAME:
-        fprintf(stderr, "%d. %s (PROC_NAME, %d)\n", i, symbol_table[i].var_name, symbol_table[i].reg);
-        break;
-
-    }
-  }
-  fprintf(stderr, "\n");
-}
-
-int lookup(char *vn)
-{
-  int i;
-  fprintf(stderr, "variable \'%s\' looked up!!(%d)\n", vn, yylineno);
-  for (i=symbol_table_length-1;i>=0;i--)
-  {
-    if (strcmp(vn, symbol_table[i].var_name) == 0)
-    {
-      switch (symbol_table[i].scope)
-      {
-        case GLOBAL_VAR:
-          fprintf(stderr, "GLOBAL_VAR\n");
-          break;
-        case LOCAL_VAR:
-          fprintf(stderr, "LOCAL_VAR\n");
-          break;
-        case PROC_NAME:
-          fprintf(stderr, "PROC_NAME\n");
-          break;
-      }
-      fprintf(stderr, "\n");
-      return i;
-    }
-  }
-  return -1;
-}
-
-void delete()
-{
-  int i;
-  SymbolTable target_symbol;
-  fprintf(stderr, "deleted!!\n");
-  fprintf(stderr, "--------------------------\n");
-  while (1) {
-    target_symbol = symbol_table[symbol_table_length-1];
-    if (target_symbol.scope == LOCAL_VAR)
-    {
-      free(target_symbol.var_name);
-      symbol_table_length --;
-    }
-    else break;
-  }
-
-  // show symbol table
-  for (i=0;i<symbol_table_length;i++)
-  {
-    switch (symbol_table[i].scope)
-    {
-      case GLOBAL_VAR:
-        fprintf(stderr, "%d. %s (GLOBAL_VAR, %d)\n", i, symbol_table[i].var_name, symbol_table[i].reg);
-        break;
-
-      case LOCAL_VAR:
-        fprintf(stderr, "%d. %s (LOCAL_VAR, %d)\n", i, symbol_table[i].var_name, symbol_table[i].reg);
-        break;
-
-      case PROC_NAME:
-        fprintf(stderr, "%d. %s (PROC_NAME, %d)\n", i, symbol_table[i].var_name, symbol_table[i].reg);
-        break;
-
-    }
-  }
-  fprintf(stderr, "\n");
-
-  
 }

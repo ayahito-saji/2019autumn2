@@ -26,30 +26,12 @@ static const char yysccsid[] = "@(#)yaccpar	1.9 (Berkeley) 02/21/93";
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "symbol_table.h"
 
 extern int yylineno;
 extern char *yytext;
 
-typedef enum {
-  GLOBAL_VAR,
-  LOCAL_VAR,
-  PROC_NAME,
-  CONSTANT
-} Scope;
-
-typedef struct {
-  char *var_name;
-  int reg;
-  Scope scope;
-  
-} SymbolTable;
-
-/* define stack and stack length */
-SymbolTable symbol_table[1024];
-int symbol_table_length = 0;
-int is_local_variable = 0;
-
-#line 36 "parser.y"
+#line 18 "parser.y"
 #ifdef YYSTYPE
 #undef  YYSTYPE_IS_DECLARED
 #define YYSTYPE_IS_DECLARED 1
@@ -61,7 +43,7 @@ typedef union {
     char ident[MAXLENGTH+1];
 } YYSTYPE;
 #endif /* !YYSTYPE_IS_DECLARED */
-#line 64 "y.tab.c"
+#line 46 "y.tab.c"
 
 /* compatibility with bison */
 #ifdef YYPARSE_PARAM
@@ -374,121 +356,13 @@ typedef struct {
 } YYSTACKDATA;
 /* variables for the parser stack */
 static YYSTACKDATA yystack;
-#line 210 "parser.y"
+#line 192 "parser.y"
  
 yyerror(char *s)
 {
   fprintf(stderr, "%s(%d: \'%s\')\n", s, yylineno, yytext);
 }
-
-void insert(char *vn, Scope scope)
-{
-  int i;
-  char *var_name;
-
-  var_name = (char *)malloc(128);
-  strcpy(var_name, vn);
-
-  // show action
-  fprintf(stderr, "variable \'%s\' inserted!!(%d)\n", var_name, yylineno);
-  fprintf(stderr, "--------------------------\n");
-
-
-  // assignment to table
-  symbol_table[symbol_table_length].var_name = var_name;
-  symbol_table[symbol_table_length].reg = symbol_table_length + 2;
-  symbol_table[symbol_table_length].scope = scope;
-  symbol_table_length++;
-
-  // show symbol table
-  for (i=0;i<symbol_table_length;i++)
-  {
-    switch (symbol_table[i].scope)
-    {
-      case GLOBAL_VAR:
-        fprintf(stderr, "%d. %s (GLOBAL_VAR, %d)\n", i, symbol_table[i].var_name, symbol_table[i].reg);
-        break;
-
-      case LOCAL_VAR:
-        fprintf(stderr, "%d. %s (LOCAL_VAR, %d)\n", i, symbol_table[i].var_name, symbol_table[i].reg);
-        break;
-
-      case PROC_NAME:
-        fprintf(stderr, "%d. %s (PROC_NAME, %d)\n", i, symbol_table[i].var_name, symbol_table[i].reg);
-        break;
-
-    }
-  }
-  fprintf(stderr, "\n");
-}
-
-int lookup(char *vn)
-{
-  int i;
-  fprintf(stderr, "variable \'%s\' looked up!!(%d)\n", vn, yylineno);
-  for (i=symbol_table_length-1;i>=0;i--)
-  {
-    if (strcmp(vn, symbol_table[i].var_name) == 0)
-    {
-      switch (symbol_table[i].scope)
-      {
-        case GLOBAL_VAR:
-          fprintf(stderr, "GLOBAL_VAR\n");
-          break;
-        case LOCAL_VAR:
-          fprintf(stderr, "LOCAL_VAR\n");
-          break;
-        case PROC_NAME:
-          fprintf(stderr, "PROC_NAME\n");
-          break;
-      }
-      fprintf(stderr, "\n");
-      return i;
-    }
-  }
-  return -1;
-}
-
-void delete()
-{
-  int i;
-  SymbolTable target_symbol;
-  fprintf(stderr, "deleted!!\n");
-  fprintf(stderr, "--------------------------\n");
-  while (1) {
-    target_symbol = symbol_table[symbol_table_length-1];
-    if (target_symbol.scope == LOCAL_VAR)
-    {
-      free(target_symbol.var_name);
-      symbol_table_length --;
-    }
-    else break;
-  }
-
-  // show symbol table
-  for (i=0;i<symbol_table_length;i++)
-  {
-    switch (symbol_table[i].scope)
-    {
-      case GLOBAL_VAR:
-        fprintf(stderr, "%d. %s (GLOBAL_VAR, %d)\n", i, symbol_table[i].var_name, symbol_table[i].reg);
-        break;
-
-      case LOCAL_VAR:
-        fprintf(stderr, "%d. %s (LOCAL_VAR, %d)\n", i, symbol_table[i].var_name, symbol_table[i].reg);
-        break;
-
-      case PROC_NAME:
-        fprintf(stderr, "%d. %s (PROC_NAME, %d)\n", i, symbol_table[i].var_name, symbol_table[i].reg);
-        break;
-
-    }
-  }
-  fprintf(stderr, "\n");
-
-  
-}
-#line 491 "y.tab.c"
+#line 365 "y.tab.c"
 
 #if YYDEBUG
 #include <stdio.h>		/* needed for printf */
@@ -695,42 +569,42 @@ yyreduce:
     switch (yyn)
     {
 case 13:
-#line 95 "parser.y"
-	{ delete();is_local_variable = 0; }
+#line 77 "parser.y"
+	{ delete(); }
 break;
 case 14:
-#line 99 "parser.y"
-	{ insert(yystack.l_mark[0].ident, PROC_NAME); is_local_variable = 1; }
+#line 81 "parser.y"
+	{ insert(yystack.l_mark[0].ident, PROC_NAME); }
 break;
 case 27:
-#line 124 "parser.y"
+#line 106 "parser.y"
 	{ lookup(yystack.l_mark[-2].ident); }
 break;
 case 34:
-#line 149 "parser.y"
+#line 131 "parser.y"
 	{ lookup(yystack.l_mark[0].ident); }
 break;
 case 36:
-#line 157 "parser.y"
+#line 139 "parser.y"
 	{ lookup(yystack.l_mark[-1].ident); }
 break;
 case 37:
-#line 161 "parser.y"
+#line 143 "parser.y"
 	{ lookup(yystack.l_mark[-1].ident); }
 break;
 case 56:
-#line 198 "parser.y"
+#line 180 "parser.y"
 	{ lookup(yystack.l_mark[0].ident); }
 break;
 case 59:
-#line 207 "parser.y"
-	{ insert(yystack.l_mark[0].ident, is_local_variable ? LOCAL_VAR : GLOBAL_VAR); }
+#line 189 "parser.y"
+	{ insert(yystack.l_mark[0].ident, UNDEFINED_VAR); }
 break;
 case 60:
-#line 208 "parser.y"
-	{ insert(yystack.l_mark[0].ident, is_local_variable ? LOCAL_VAR : GLOBAL_VAR); }
+#line 190 "parser.y"
+	{ insert(yystack.l_mark[0].ident, UNDEFINED_VAR); }
 break;
-#line 733 "y.tab.c"
+#line 607 "y.tab.c"
     }
     yystack.s_mark -= yym;
     yystate = *yystack.s_mark;
