@@ -29,6 +29,7 @@ typedef struct {
 /* define stack and stack length */
 SymbolTable symbol_table[1024];
 int symbol_table_length = 0;
+int is_local_variable = 0;
 
 %}
 
@@ -91,11 +92,11 @@ subprog_decl
         ;
 
 proc_decl
-        : PROCEDURE proc_name SEMICOLON inblock
+        : PROCEDURE proc_name SEMICOLON inblock { delete();is_local_variable = 0; }
         ;
 
 proc_name
-        : IDENT
+        : IDENT { insert($1, PROC_NAME); is_local_variable = 1; }
         ;
 
 inblock
@@ -120,7 +121,7 @@ statement
         ;
 
 assignment_statement
-        : IDENT ASSIGN expression
+        : IDENT ASSIGN expression { lookup($1); }
         ;
 
 if_statement
@@ -145,7 +146,7 @@ proc_call_statement
         ;
 
 proc_call_name
-        : IDENT
+        : IDENT{ lookup($1); }
         ;
 
 block_statement
@@ -153,11 +154,11 @@ block_statement
         ;
 
 read_statement
-        : READ LPAREN IDENT RPAREN
+        : READ LPAREN IDENT RPAREN { lookup($3); }
         ;
 
 write_statement
-        : WRITE LPAREN IDENT RPAREN
+        : WRITE LPAREN IDENT RPAREN { lookup($3); }
         ;
 
 null_statement
@@ -203,8 +204,8 @@ arg_list
         ;
 
 id_list
-        : IDENT { insert($1, GLOBAL_VAR); }
-        | id_list COMMA IDENT { insert($3, GLOBAL_VAR); }
+        : IDENT { insert($1, is_local_variable ? LOCAL_VAR : GLOBAL_VAR); }
+        | id_list COMMA IDENT { insert($3, is_local_variable ? LOCAL_VAR : GLOBAL_VAR); }
 
 %% 
 yyerror(char *s)
@@ -221,7 +222,7 @@ void insert(char *vn, Scope scope)
   strcpy(var_name, vn);
 
   // show action
-  fprintf(stderr, "variable \'%s\' inserted!!\n", var_name);
+  fprintf(stderr, "variable \'%s\' inserted!!(%d)\n", var_name, yylineno);
   fprintf(stderr, "--------------------------\n");
 
 
@@ -243,6 +244,11 @@ void insert(char *vn, Scope scope)
       case LOCAL_VAR:
         fprintf(stderr, "%d. %s (LOCAL_VAR, %d)\n", i, symbol_table[i].var_name, symbol_table[i].reg);
         break;
+
+      case PROC_NAME:
+        fprintf(stderr, "%d. %s (PROC_NAME, %d)\n", i, symbol_table[i].var_name, symbol_table[i].reg);
+        break;
+
     }
   }
   fprintf(stderr, "\n");
@@ -251,7 +257,7 @@ void insert(char *vn, Scope scope)
 int lookup(char *vn)
 {
   int i;
-  fprintf(stderr, "variable \'%s\' looked up!!\n", vn);
+  fprintf(stderr, "variable \'%s\' looked up!!(%d)\n", vn, yylineno);
   for (i=symbol_table_length-1;i>=0;i--)
   {
     if (strcmp(vn, symbol_table[i].var_name) == 0)
@@ -264,6 +270,9 @@ int lookup(char *vn)
         case LOCAL_VAR:
           fprintf(stderr, "LOCAL_VAR\n");
           break;
+        case PROC_NAME:
+          fprintf(stderr, "PROC_NAME\n");
+          break;
       }
       fprintf(stderr, "\n");
       return i;
@@ -274,9 +283,40 @@ int lookup(char *vn)
 
 void delete()
 {
+  int i;
+  SymbolTable target_symbol;
   fprintf(stderr, "deleted!!\n");
-  while (symbol_table[i].scope == LOCAL_VAR)
-  {
-
+  fprintf(stderr, "--------------------------\n");
+  while (1) {
+    target_symbol = symbol_table[symbol_table_length-1];
+    if (target_symbol.scope == LOCAL_VAR)
+    {
+      free(target_symbol.var_name);
+      symbol_table_length --;
+    }
+    else break;
   }
+
+  // show symbol table
+  for (i=0;i<symbol_table_length;i++)
+  {
+    switch (symbol_table[i].scope)
+    {
+      case GLOBAL_VAR:
+        fprintf(stderr, "%d. %s (GLOBAL_VAR, %d)\n", i, symbol_table[i].var_name, symbol_table[i].reg);
+        break;
+
+      case LOCAL_VAR:
+        fprintf(stderr, "%d. %s (LOCAL_VAR, %d)\n", i, symbol_table[i].var_name, symbol_table[i].reg);
+        break;
+
+      case PROC_NAME:
+        fprintf(stderr, "%d. %s (PROC_NAME, %d)\n", i, symbol_table[i].var_name, symbol_table[i].reg);
+        break;
+
+    }
+  }
+  fprintf(stderr, "\n");
+
+  
 }
