@@ -25,12 +25,127 @@
 \date{\today}
 \begin{document}
 \maketitle
+\section{言語仕様}
+はじめに，この実験を通して作成する言語の仕様を記述する．この実験で作成する言語はプログラム言語Pascalのサブ接である．実験では，まず基本的な機能を実奏し，順次，他の機能を追加課題として加える方式を採用した．それによって，段階を踏んで，実際的なプログラミング言語を開発することが可能である．
+実験1から実験3までで作成するコンパイラが対応する言語は\verb#PL-0#と定義する．これに段階的に機能を追加していったものを\verb#PL-1#から\verb#PL-3#と呼称する．
+\subsection{PL-0}
+プログラミング言語\verb#PL-0#は次のような仕様である．
+\begin{itemize}
+  \item データ型は整数型のみ存在する．
+  \item 手続きおよび再帰呼出しが可能．
+  \item 名前（変数名と手続き名）の有効範囲は標準Pascalと同等である．ただし，手続き定義の入れ子の深さは1までとする．したがって，手続きの中で他の手続きを定義することはできない．
+  \item 制御文は次の4種類を定義する．
+  \begin{itemize}
+    \item \verb#if ... then ... else ...# 条件分岐文
+    \item \verb#while ... do ... # whileループ文
+    \item \verb#for ... do ...# forループ文
+    \item \verb#begin ..; ..; end# 複合文
+  \end{itemize}
+  \item 入出力のための命令文として\verb#read#，\verb#write#が存在する．
+\end{itemize}
+\subsection{PL-1}
+プログラミング言語\verb#PL-1#は次のような仕様である．
+\begin{itemize}
+  \item データ型は整数型のみ存在する．
+  \item 手続きおよび再帰呼出しが可能，この時引数の値渡しが可能である．引数は複数でも良い．
+  \item 名前（変数名と手続き名）の有効範囲は標準Pascalと同等である．ただし，手続き定義の入れ子の深さは1までとする．したがって，手続きの中で他の手続きを定義することはできない．
+  \item 制御文は次の4種類を定義する．
+  \begin{itemize}
+    \item \verb#if ... then ... else ...# 条件分岐文
+    \item \verb#while ... do ... # whileループ文
+    \item \verb#for ... do ...# forループ文
+    \item \verb#begin ..; ..; end# 複合文
+  \end{itemize}
+  \item 入出力のための命令文として\verb#read#，\verb#write#が存在する．
+\end{itemize}
+\subsection{PL-2}
+プログラミング言語\verb#PL-2#は次のような仕様である．
+\begin{itemize}
+  \item データ型は整数型のみ存在する．
+  \item 手続きおよび再帰呼出しが可能，この時引数の値渡しが可能である．引数は複数でも良い．手続きに戻り値を定義可能であり，関数として処理することが可能である．
+  \item 名前（変数名と手続き名）の有効範囲は標準Pascalと同等である．ただし，手続き定義の入れ子の深さは1までとする．したがって，手続きの中で他の手続きを定義することはできない．
+  \item 制御文は次の4種類を定義する．
+  \begin{itemize}
+    \item \verb#if ... then ... else ...# 条件分岐文
+    \item \verb#while ... do ... # whileループ文
+    \item \verb#for ... do ...# forループ文
+    \item \verb#begin ..; ..; end# 複合文
+  \end{itemize}
+  \item 入出力のための命令文として\verb#read#，\verb#write#が存在する．
+\end{itemize}
+\subsection{PL-3}
+プログラミング言語\verb#PL-3#は次のような仕様である．
+\begin{itemize}
+  \item データ型は整数型のみ存在する．
+  \item 手続きおよび再帰呼出しが可能，この時引数の値渡しが可能である．引数は複数でも良い．手続きに戻り値を定義可能であり，関数として処理することが可能である．
+  \item 名前（変数名と手続き名）の有効範囲は標準Pascalと同等である．ただし，手続き定義の入れ子の深さは1までとする．したがって，手続きの中で他の手続きを定義することはできない．
+  \item 制御文は次の4種類を定義する．
+  \begin{itemize}
+    \item \verb#if ... then ... else ...# 条件分岐文
+    \item \verb#while ... do ... # whileループ文
+    \item \verb#for ... do ...# forループ文
+    \item \verb#begin ..; ..; end# 複合文
+  \end{itemize}
+  \item 入出力のための命令文として\verb#read#，\verb#write#が存在する．
+  \item 1次元の配列を扱うことが可能である．配列の開始番号および添字の範囲は自由に設定可能である．
+\end{itemize}
 \section{実験1}
 \subsection{目的}
 この実験では，字句解析器生成器の一つである\verb#lex#を用いて，PL0言語を字句解析するCプログラム\verb#scanner.c#を生成する．
 実験の目的は，\verb#lex#の使い方および，PL0言語がどのように規定されるかを正しく理解することである．コンパイラ作成において，構文解析が重要な要素であるが，字句解析は構文解析を行うための前提として不可欠である．ここでは，規定されていないトークンが入力された際に，エラーを正しく返すプログラムを目標として作成する．
 \subsection{実験方法}
-\begin{lstlisting}[caption=symbol.h,label=lst:ex1:symbol.h]
+この実験では，作成する\verb#PL-0#コンパイラが解析する言語が対応するトークン列を字句解析するプログラム\verb#scanner.l#を作成する．
+ここで，\verb#PL-0#コンパイラが解析する言語\verb#PL-0#のトークンを表\ref{tbl:token}に記述する．
+\begin{table}[tb]
+  \begin{center}
+    \caption{トークン表}
+    \begin{tabular}{|l|l|l|} \hline
+      記号 & 種別 & 列挙型名 \\ \hline \hline
+      \verb#begin# & 予約語 & \verb#SBEGIN# \\
+      \verb#div# & 予約語 & \verb#DIV# \\
+      \verb#do# & 予約語 & \verb#DO# \\
+      \verb#else# & 予約語 & \verb#ELSE# \\
+      \verb#end# & 予約語 & \verb#SEND# \\
+      \verb#for# & 予約語 & \verb#FOR# \\
+      \verb#forward# & 予約語 & \verb#FORWARD# \\
+      \verb#function# & 予約語 & \verb#FUNCTION# \\
+      \verb#if# & 予約語 & \verb#IF# \\
+      \verb#procedure# & 予約語 & \verb#PROCEDURE# \\
+      \verb#program# & 予約語 & \verb#PROGRAM# \\
+      \verb#read# & 予約語 & \verb#READ# \\
+      \verb#then# & 予約語 & \verb#THEN# \\
+      \verb#to# & 予約語 & \verb#TO# \\
+      \verb#var# & 予約語 & \verb#VAR# \\
+      \verb#while# & 予約語 & \verb#WHILE# \\
+      \verb#write# & 予約語 & \verb#WRITE# \\
+      \hline
+      \verb#+# & 基本シンボル & \verb#PLUS# \\
+      \verb#-# & 基本シンボル & \verb#MINUS# \\
+      \verb#*# & 基本シンボル & \verb#MULT# \\
+      \verb#=# & 基本シンボル & \verb#EQ# \\
+      \verb#<># & 基本シンボル & \verb#NEQ# \\
+      \verb#<=# & 基本シンボル & \verb#LE# \\
+      \verb#<# & 基本シンボル & \verb#LT# \\
+      \verb#>=# & 基本シンボル & \verb#GE# \\
+      \verb#># & 基本シンボル & \verb#GT# \\
+      \verb#(# & 基本シンボル & \verb#LPAREN# \\
+      \verb#)# & 基本シンボル & \verb#RPAREN# \\
+      \verb#[# & 基本シンボル & \verb#LBRACE# \\
+      \verb#]# & 基本シンボル & \verb#RBRACE# \\
+      \verb#,# & 基本シンボル & \verb#COMMA# \\
+      \verb#;# & 基本シンボル & \verb#SEMICOLON# \\
+      \verb#:# & 基本シンボル & \verb#COLON# \\
+      \verb#.# & 基本シンボル & \verb#PERIOD# \\
+      \verb#..# & 基本シンボル & \verb#INTERVAL# \\
+      \verb#:=# & 基本シンボル & \verb#ASSIGN# \\
+      \hline
+    \end{tabular}
+    \label{tbl:token}
+  \end{center}
+\end{table}
+実験開始時に配布された\verb#src.zip#をlinuxマシン上で解凍すると，\verb#data-structure.c#，\verb#parser.y#，\verb#scanner.l#および\verb#symbol.h#が出力される．実験1で利用するファイルは\verb#scanner.l#および\verb#symbol.h#である．これらのファイルはルールの一部が適切に設定されておらず，トークン列にたいして正しく動作しないため，ルールを正しく追加定義した．
+正しく変更した\verb#scanner.l#をソースコード\ref{lst:ex1:scanner.l}に記述する．検出したトークンに対して，返すシンボル列が\verb#symbols.h#に定義されているため，この定義に従って行った．\verb#symbols.h#のプログラムをソースコード\ref{lst:ex1:symbols.h}に記載する．
+\begin{lstlisting}[caption=symbol.h,label=lst:ex1:symbols.h]
 /*
  * symbols.h
  */
@@ -77,7 +192,7 @@ enum {
     IDENT,
 };
 \end{lstlisting}
-\begin{lstlisting}[caption=scanner.c,label=lst:ex1:scanner.c]
+\begin{lstlisting}[caption=scanner.l,label=lst:ex1:scanner.l]
 %{
 /*
  * scanner: scanner for PL-*
@@ -202,12 +317,648 @@ main(int argc, char *argv[]) {
     }
 }
 \end{lstlisting}
+ルールを適切に追加定義したら，コマンド\ref{lst:ex1:scanner}で\verb#lex#および\verb#cc#を用いてコンパイルし，実行可能ファイルである\verb#scanner#を作成した．
+\begin{lstlisting}[caption=字句解析器scanner.lの生成コマンド,label=lst:ex1:scanner]
+$lex scanner.l
+$cc lex.yy.c -ll -o scanner
+\end{lstlisting}
+また，\verb#scanner#の作成は今後行う回数が多いため，\verb#Makefile#を作成して，次のように記述した．
+\begin{lstlisting}[caption=Makefile,label=lst:ex1:makefile]
+lex:
+	lex scanner.l
+	cc lex.yy.c -ll -o scanner
+\end{lstlisting}
+そのため，今後は\verb#make#コマンドを用いてコンパイルを行った．
+ダウンロード\verb#src#フォルダに，実験開始時に与えられたサンプルプログラム集\verb#samples.zip#を保存して解凍した．
+その後\verb#scanner#を用いて字句解析を行った．
 \subsection{実験結果}
+\verb#scanner#での字句解析の結果を示す．
+この実験では\verb#pl0a.p#，\verb#pl0b.p#，\verb#pl0c.p#，\verb#pl1a.p#，\verb#pl2a.p#，\verb#pl2b.p#，\verb#pl2c.p#，\verb#pl3a.p#，\verb#pl3b.p#を字句解析を行った．
+ソースコード\ref{lst:ex1:result-pl0a.p}およびソースコード\ref{lst:ex1:result-pl0b.p}にそれぞれ\verb#pl0a.p#，\verb#pl0b.p#の結果を記載する．
+一列目はトークンとして認識された文字列，二列目はトークン番号，三番目はトークンの値または予約語を示している．
+\begin{lstlisting}[caption=pl0a.pの字句解析結果,label=lst:ex1:result-pl0a.p]
+$./scanner samples/pl0a.p
+"program":	11	RESERVE
+"PL0A":	38	PL0A
+";":	32	RESERVE
+"var":	15	RESERVE
+"n":	38	n
+",":	31	RESERVE
+"sum":	38	sum
+";":	32	RESERVE
+"begin":	1	RESERVE
+"n":	38	n
+":=":	36	RESERVE
+"10":	37	10
+";":	32	RESERVE
+"sum":	38	sum
+":=":	36	RESERVE
+"0":	37	0
+";":	32	RESERVE
+"while":	16	RESERVE
+"n":	38	n
+">":	26	RESERVE
+"0":	37	0
+"do":	3	RESERVE
+"begin":	1	RESERVE
+"sum":	38	sum
+":=":	36	RESERVE
+"sum":	38	sum
+"+":	18	RESERVE
+"n":	38	n
+";":	32	RESERVE
+"n":	38	n
+":=":	36	RESERVE
+"n":	38	n
+"-":	19	RESERVE
+"1":	37	1
+"end":	5	RESERVE
+"end":	5	RESERVE
+".":	35	RESERVE
+\end{lstlisting}
+
+\begin{lstlisting}[caption=pl0b.pの字句解析結果,label=lst:ex1:result-pl0b.p]
+$./scanner samples/pl0b.p
+"program":	11	RESERVE
+"PL0B":	38	PL0B
+";":	32	RESERVE
+"var":	15	RESERVE
+"n":	38	n
+",":	31	RESERVE
+"x":	38	x
+";":	32	RESERVE
+"procedure":	10	RESERVE
+"prime":	38	prime
+";":	32	RESERVE
+"var":	15	RESERVE
+"m":	38	m
+";":	32	RESERVE
+"begin":	1	RESERVE
+"m":	38	m
+":=":	36	RESERVE
+"x":	38	x
+"div":	2	RESERVE
+"2":	37	2
+";":	32	RESERVE
+"while":	16	RESERVE
+"x":	38	x
+"<>":	22	RESERVE
+"(":	27	RESERVE
+"x":	38	x
+"div":	2	RESERVE
+"m":	38	m
+")":	28	RESERVE
+"*":	20	RESERVE
+"m":	38	m
+"do":	3	RESERVE
+"m":	38	m
+":=":	36	RESERVE
+"m":	38	m
+"-":	19	RESERVE
+"1":	37	1
+";":	32	RESERVE
+"if":	9	RESERVE
+"m":	38	m
+"=":	21	RESERVE
+"1":	37	1
+"then":	13	RESERVE
+"write":	17	RESERVE
+"(":	27	RESERVE
+"x":	38	x
+")":	28	RESERVE
+"end":	5	RESERVE
+";":	32	RESERVE
+"begin":	1	RESERVE
+"read":	12	RESERVE
+"(":	27	RESERVE
+"n":	38	n
+")":	28	RESERVE
+";":	32	RESERVE
+"while":	16	RESERVE
+"1":	37	1
+"<":	24	RESERVE
+"n":	38	n
+"do":	3	RESERVE
+"begin":	1	RESERVE
+"x":	38	x
+":=":	36	RESERVE
+"n":	38	n
+";":	32	RESERVE
+"prime":	38	prime
+";":	32	RESERVE
+"n":	38	n
+":=":	36	RESERVE
+"n":	38	n
+"-":	19	RESERVE
+"1":	37	1
+"end":	5	RESERVE
+"end":	5	RESERVE
+".":	35	RESERVE
+\end{lstlisting}
+上記の結果より，適切に字句解析が行われていることが確認できた．
+
 \subsection{考察}
 
 \section{実験2}
 \subsection{目的}
+この実験の目的は，\verb#PL-0#の構文解析器である\verb#parser#を\verb#yacc#を用いて作成することである．
+\verb#yacc#で用いる構文規則はBNF記法を参考に構成されており，文法がBNF記法で与えられるプログラミング言語を実装するのに都合が良い．\verb#PL-0#は文法がBNF記法で与えることが可能であり，\verb#yacc#で言語を容易に構文規則を実装することができる．
+この実験を通して，\verb#yacc#の使用方法ならびにBNF記法の仕組みについて考え，\verb#PL-0#の構文規則に対して理解を深める．加えて，\verb#yacc#と\verb#lex#を組み合わせる方法についても学習する．
 \subsection{実験方法}
+実験開始時に提供された\verb#src#フォルダ中に存在する\verb#parser.y#は，\verb#PL-0#の構文規則が適切に定義されていない．まず，\verb#parser.y#中に適切に構文規則を追加定義した．構文規則は\%\%で囲まれた構文規則部に記述した．
+追加定義はソースコード\verb#lst:ex2:bnf#に記載した．
+
+\begin{lstlisting}[caption=構文規則の追加定義,label=lst:ex2:bnf]
+program
+        : PROGRAM IDENT SEMICOLON outblock PERIOD
+        ;
+
+outblock
+        : var_decl_part subprog_decl_part statement
+        ;
+
+var_decl_part
+        : /* empty */
+        | var_decl_list SEMICOLON
+        ;
+
+var_decl_list
+        : var_decl_list SEMICOLON var_decl
+        | var_decl
+        ;
+
+var_decl
+        : VAR id_list
+        ;
+
+subprog_decl_part
+        : subprog_decl_list SEMICOLON
+        | /* empty */
+        ;
+
+subprog_decl_list
+        : subprog_decl_list SEMICOLON subprog_decl
+        | subprog_decl
+        ;
+
+subprog_decl
+        : proc_decl
+        ;
+
+proc_decl
+        : PROCEDURE proc_name SEMICOLON inblock
+        ;
+
+proc_name
+        : IDENT
+        ;
+
+inblock
+        : var_decl_part statement
+        ;
+
+statement_list
+        : statement_list SEMICOLON statement
+        | statement
+        ;
+
+statement
+        : assignment_statement
+        | if_statement
+        | while_statement
+        | for_statement
+        | proc_call_statement
+        | null_statement
+        | block_statement
+        | read_statement
+        | write_statement
+        ;
+
+assignment_statement
+        : IDENT ASSIGN expression
+        ;
+
+if_statement
+        : IF condition THEN statement else_statement
+        ;
+
+else_statement
+        : ELSE statement
+        |
+        ;
+
+while_statement
+        : WHILE condition DO statement
+        ;
+
+for_statement
+        : FOR IDENT ASSIGN expression TO expression DO statement
+        ;
+
+proc_call_statement
+        : proc_call_name
+        ;
+
+proc_call_name
+        : IDENT
+        ;
+
+block_statement
+        : SBEGIN statement_list SEND
+        ;
+
+read_statement
+        : READ LPAREN IDENT RPAREN
+        ;
+
+write_statement
+        : WRITE LPAREN IDENT RPAREN
+        ;
+
+null_statement
+        : /*empty*/
+        ;
+
+condition
+        : expression EQ expression
+        | expression NEQ expression
+        | expression LT expression
+        | expression LE expression
+        | expression GT expression
+        | expression GE expression
+        ;
+
+expression
+        : term
+        | PLUS term
+        | MINUS term
+        | expression PLUS term
+        | expression MINUS term
+        ;
+
+term
+        : factor
+        | term MULT factor
+        | term DIV factor
+        ;
+
+factor
+        : var_name
+        | NUMBER
+        | LPAREN expression RPAREN
+        ;
+
+var_name
+        : IDENT
+        ;
+
+arg_list
+        : expression
+        | arg_list COMMA expression
+        ;
+
+id_list
+        : IDENT
+        | id_list COMMA IDENT
+\end{lstlisting}
+次に，\verb#parser.y#と\verb#scanner.l#を適切に結合して，２つのプログラムで強調して字句解析および構文解析を行うようにプログラムを編集した．まずは\verb#scanner.l#の変更をソースコードに示す．ここでは，includeしている\verb#symbols.h#を，\verb#y.tab.h#に変更した．\verb#y.tab.h#は\verb#parser.y#を\verb#yacc#コマンドによってコンパイルすると生成されるヘッダファイルである．ここに字句解析に必要なデータが定義される．また，\verb#y.tab.h#と\verb#define#部の順番に気をつけて読み込みを行った．
+次に，\verb#main#関数内で\verb#yyparse#関数を呼び出すことで，構文解析を字句解析と同時に行うようにした．また，実験1で利用した，字句の種類および値を出力する部分のコードはコメントアウトした．
+これをソースコード\ref{lst:ex2:scanner.l}に示す．
+\begin{lstlisting}[caption=scanner.lの修正,label=lst:ex2:scanner.l]
+%{
+/*
+ * scanner: scanner for PL-*
+ *
+ */
+
+#include <stdio.h>
+#include <string.h>
+// #include "symbols.h"
+
+#define MAXLENGTH 16
+
+#include "y.tab.h"
+
+/*
+typedef union {
+    int num;
+    char ident[MAXLENGTH+1];
+} token;
+*/
+
+/*
+ * yylval という変数名にするのは，yacc との融合時にプログラムの変更を
+ * 最小限にするためである．
+ */
+/*
+token yylval;
+*/
+
+%}
+%option yylineno
+%%
+
+begin           return SBEGIN;
+div             return DIV;
+do              return DO;
+else            return ELSE;
+end             return SEND;
+for             return FOR;
+forward         return FORWARD;
+function        return FUNCTION;
+if              return IF;
+procedure       return PROCEDURE;
+program         return PROGRAM;
+read            return READ;
+then            return THEN;
+to              return TO;
+var             return VAR;
+while           return WHILE;
+write           return WRITE;
+
+"+"             return PLUS;
+"-"             return MINUS;
+"*"             return MULT;
+"="             return EQ;
+"<>"            return NEQ;
+"<="            return LE;
+"<"             return LT;
+">="            return GE;
+">"             return GT;
+"("             return LPAREN;
+")"             return RPAREN;
+"["             return LBRACE;
+"]"             return RBRACE;
+","             return COMMA;
+";"             return SEMICOLON;
+":"             return COLON;
+".."            return INTERVAL;
+"."             return PERIOD;
+":="            return ASSIGN;
+
+[0-9]|[1-9][0-9]* {
+    yylval.num = atoi(yytext);
+    return NUMBER;
+}
+
+[a-zA-Z][0-9a-zA-Z]* {
+    strcpy(yylval.ident, yytext);
+    return IDENT;
+}
+
+[ \t\n] ;
+
+. {
+    fprintf(stderr, "cannot handle such characters: %s\n", yytext);
+}
+
+%%
+
+main(int argc, char *argv[]) {
+    FILE *fp;
+    int tok;
+
+    if (argc != 2) {
+        fprintf(stderr, "usage: %s filename\n", argv[0]);
+        exit(1);
+    }
+
+    if ((fp = fopen(argv[1], "r")) == NULL) {
+        fprintf(stderr, "cannot open file: %s\n", argv[1]);
+        exit(1);
+    }
+
+    /*
+     * yyin は lex の内部変数であり，入力のファイルポインタを表す．
+     */
+    yyin = fp;
+
+    yyparse();
+
+    /*
+     * yylex() を呼び出すことにより，トークンが一つ切り出される．
+     * yylex() の戻り値は，上のアクション部で定義した戻り値である．
+     * yytext には，切り出されたトークンが文字列として格納されている．
+     */
+    /*
+    while (tok = yylex()) {
+        switch (tok) {
+        case NUMBER:
+            printf("\"%s\":\t%d\t%d\n", yytext, tok, yylval.num);
+            break;
+
+        case IDENT:
+            printf("\"%s\":\t%d\t%s\n", yytext, tok, yylval.ident);
+            break;
+
+        default:
+            printf("\"%s\":\t%d\tRESERVE\n", yytext, tok);
+            break;
+        }
+    }
+    */
+}
+
+\end{lstlisting}
+
+構文解析中にエラーを出力するために，エラーの行番号\verb#yylineno#およびエラー発生トークン\verb#yytext#を宣言し，\verb#yyerror#関数中で，エラーの行番号およびエラー発生トークンを利用して，エラー表示を行うように\verb#parser.y#を変更した．
+
+\begin{lstlisting}[caption=parser.yの修正,label=lst:ex2:parser.y]
+%{
+/*
+ * parser; Parser for PL-*
+ */
+
+#define MAXLENGTH 16
+
+#include <stdio.h>
+
+extern int yylineno;
+extern char *yytext;
+
+%}
+
+%union {
+    int num;
+    char ident[MAXLENGTH+1];
+}
+
+%token SBEGIN DO ELSE SEND
+%token FOR FORWARD FUNCTION IF PROCEDURE
+%token PROGRAM READ THEN TO VAR
+%token WHILE WRITE
+
+%left PLUS MINUS                       //← 注意
+%left MULT DIV                         //← 注意
+
+%token EQ NEQ LE LT GE GT
+%token LPAREN RPAREN LBRACE RBRACE
+%token COMMA SEMICOLON COLON INTERVAL
+%token PERIOD ASSIGN
+%token <num> NUMBER                    //← yylval の型を指定
+%token <ident> IDENT                   //← yylval の型を指定
+
+%%
+
+program
+        : PROGRAM IDENT SEMICOLON outblock PERIOD
+        ;
+
+outblock
+        : var_decl_part subprog_decl_part statement
+        ;
+
+var_decl_part
+        : /* empty */
+        | var_decl_list SEMICOLON
+        ;
+
+var_decl_list
+        : var_decl_list SEMICOLON var_decl
+        | var_decl
+        ;
+
+var_decl
+        : VAR id_list
+        ;
+
+subprog_decl_part
+        : subprog_decl_list SEMICOLON
+        | /* empty */
+        ;
+
+subprog_decl_list
+        : subprog_decl_list SEMICOLON subprog_decl
+        | subprog_decl
+        ;
+
+subprog_decl
+        : proc_decl
+        ;
+
+proc_decl
+        : PROCEDURE proc_name SEMICOLON inblock
+        ;
+
+proc_name
+        : IDENT
+        ;
+
+inblock
+        : var_decl_part statement
+        ;
+
+statement_list
+        : statement_list SEMICOLON statement
+        | statement
+        ;
+
+statement
+        : assignment_statement
+        | if_statement
+        | while_statement
+        | for_statement
+        | proc_call_statement
+        | null_statement
+        | block_statement
+        | read_statement
+        | write_statement
+        ;
+
+assignment_statement
+        : IDENT ASSIGN expression
+        ;
+
+if_statement
+        : IF condition THEN statement else_statement
+        ;
+
+else_statement
+        : ELSE statement
+        |
+        ;
+
+while_statement
+        : WHILE condition DO statement
+        ;
+
+for_statement
+        : FOR IDENT ASSIGN expression TO expression DO statement
+        ;
+
+proc_call_statement
+        : proc_call_name
+        ;
+
+proc_call_name
+        : IDENT
+        ;
+
+block_statement
+        : SBEGIN statement_list SEND
+        ;
+
+read_statement
+        : READ LPAREN IDENT RPAREN
+        ;
+
+write_statement
+        : WRITE LPAREN IDENT RPAREN
+        ;
+
+null_statement
+        : /*empty*/
+        ;
+
+condition
+        : expression EQ expression
+        | expression NEQ expression
+        | expression LT expression
+        | expression LE expression
+        | expression GT expression
+        | expression GE expression
+        ;
+
+expression
+        : term
+        | PLUS term
+        | MINUS term
+        | expression PLUS term
+        | expression MINUS term
+        ;
+
+term
+        : factor
+        | term MULT factor
+        | term DIV factor
+        ;
+
+factor
+        : var_name
+        | NUMBER
+        | LPAREN expression RPAREN
+        ;
+
+var_name
+        : IDENT
+        ;
+
+arg_list
+        : expression
+        | arg_list COMMA expression
+        ;
+
+id_list
+        : IDENT
+        | id_list COMMA IDENT
+
+%%
+yyerror(char *s)
+{
+  fprintf(stderr, "%s(%d: \'%s\')\n", s, yylineno, yytext);
+}
+
+\end{lstlisting}
 \subsection{実験結果}
 \subsection{考察}
 
