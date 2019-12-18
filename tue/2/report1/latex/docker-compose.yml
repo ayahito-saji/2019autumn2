@@ -1,0 +1,7 @@
+version: '2'
+services:
+  docker:
+    image: paperist/alpine-texlive-ja
+    command: sh -c 'uplatex ./main.tex && dvipdfmx ./main.dvi'
+    volumes:
+      - .:/workdir

@@ -1,0 +1,22 @@
+タイトル
+著者を右に
+インデント3~5開けて本文
+引用は""
+ただし長い場合は空行で挟んで，さらにインデントを8開けて書く
+引用元は上付き文字で数字を書く
+
+最後に引用元は次のように書く
+
+Notes:
+1. Satoshi Fuse, /Global Worming/, Nagoya University Press, 2019, p.50
+2. /Ibid./, p.105
+3. Riko Morikawa, Economic Crisis, NUP, 2015, p100
+4. Satoshi Fuse, /Global Worming/, Nagoya University Press, 2019, pp.106-107
+5. Hayato Yumiya, /"Great Earthquakes in JP"/, /Nagoya Journal Vol III/, NUP, p.110
+
+fuse@nagoya-u.jp
+締め切り 12/12
+
+wordのファイル名: 金5○○班.docx
+
+Font: Times new Roman
