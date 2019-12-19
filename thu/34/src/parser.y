@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "symbol_table.h"
+#include "llvm.h"
 
 extern int yylineno;
 extern char *yytext;
@@ -38,11 +39,11 @@ extern char *yytext;
 %%
 
 program
-        : PROGRAM IDENT SEMICOLON outblock PERIOD
+        : PROGRAM IDENT SEMICOLON outblock PERIOD { outputCode(); }
         ;
 
 outblock
-        : var_decl_part subprog_decl_part statement
+        : var_decl_part subprog_decl_part { insert("main", PROC_NAME); } statement { delete(); }
         ;
 
 var_decl_part

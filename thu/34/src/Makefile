@@ -2,8 +2,8 @@ CC = cc
 LEX = lex
 YACC = yacc -d
 
-parser: y.tab.c lex.yy.c symbol_table.c symbol_table.h
-	$(CC) y.tab.c lex.yy.c symbol_table.c -ll -o parser
+parser: y.tab.c lex.yy.c symbol_table.c symbol_table.h llvm.h llvm.c
+	$(CC) y.tab.c lex.yy.c llvm.c symbol_table.c -ll -o parser
 
 lex.yy.c: scanner.l
 	$(LEX) scanner.l

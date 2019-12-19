@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "symbol_table.h"
+#include "llvm.h"
 
 extern int yylineno;
 extern char *yytext;
@@ -28,24 +29,30 @@ void insert(char *vn, Scope scope)
   strcpy(var_name, vn);
 
   // show action
-  fprintf(stderr, "variable \'%s\' inserted!!(%d)\n", var_name, yylineno);
-  fprintf(stderr, "--------------------------\n");
+  // fprintf(stderr, "variable \'%s\' inserted!!(%d)\n", var_name, yylineno);
+  // fprintf(stderr, "--------------------------\n");
 
   // assignment to table
   symbol_table[symbol_table_length].var_name = var_name;
   symbol_table[symbol_table_length].reg = symbol_table_length + 2;
 
   if (scope == UNDEFINED_VAR) {
-    symbol_table[symbol_table_length].scope = is_local_variable ? LOCAL_VAR : GLOBAL_VAR;
+    if (is_local_variable == 1) {
+      symbol_table[symbol_table_length].scope = LOCAL_VAR;
+    } else {
+      symbol_table[symbol_table_length].scope = GLOBAL_VAR;
+      defineGlobalVar(var_name);
+    }
   } else {
     symbol_table[symbol_table_length].scope = scope;
   }
 
   if (scope == PROC_NAME) {
+    defineProcedure(var_name);
     is_local_variable = 1;
   }
   symbol_table_length++;
-
+  /*
   // show symbol table
   for (i=0;i<symbol_table_length;i++)
   {
@@ -66,6 +73,7 @@ void insert(char *vn, Scope scope)
     }
   }
   fprintf(stderr, "\n");
+  */
 }
 
 int lookup(char *vn)
