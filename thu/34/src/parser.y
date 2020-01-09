@@ -39,11 +39,11 @@ extern char *yytext;
 %%
 
 program
-        : PROGRAM IDENT SEMICOLON outblock PERIOD { outputCode(); }
+        : { init_fstack(); } PROGRAM IDENT SEMICOLON outblock PERIOD { outputCode(); }
         ;
 
 outblock
-        : var_decl_part subprog_decl_part { insert("main", PROC_NAME); } statement { delete(); }
+        : var_decl_part subprog_decl_part { doProcedure("main"); } statement { delete(); }
         ;
 
 var_decl_part
@@ -104,7 +104,7 @@ statement
         ;
 
 assignment_statement
-        : IDENT ASSIGN expression { lookup($1); }
+        : IDENT { lookup($1); } ASSIGN expression { doAssign(); }
         ;
 
 if_statement
@@ -161,7 +161,7 @@ expression
         : term
         | PLUS term
         | MINUS term
-        | expression PLUS term
+        | expression PLUS term { doAdd(); }
         | expression MINUS term
         ;
 
@@ -173,12 +173,12 @@ term
 
 factor
         : var_name
-        | NUMBER
+        | NUMBER { pushNumber($1); }
         | LPAREN expression RPAREN
         ;
 
 var_name
-        : IDENT{ lookup($1); }
+        : IDENT{ lookup($1);doReference(); }
         ;
 
 arg_list
@@ -190,7 +190,7 @@ id_list
         : IDENT { insert($1, UNDEFINED_VAR); }
         | id_list COMMA IDENT { insert($3, UNDEFINED_VAR); }
 
-%% 
+%%
 yyerror(char *s)
 {
   fprintf(stderr, "%s(%d: \'%s\')\n", s, yylineno, yytext);

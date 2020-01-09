@@ -41,6 +41,13 @@ typedef struct {
   unsigned int top;     /* スタックのトップの位置         */
 } Factorstack;
 
+Factorstack fstack; /* 整数もしくはレジスタ番号を保持するスタック */
+
+void init_fstack(){ /* fstackの初期化 */
+  fstack.top = 0;
+  return;
+}
+
 typedef struct llvmcode {
   LLVMcommand command; /* 命令名 */
   union { /* 命令の引数 */
@@ -84,8 +91,7 @@ typedef struct llvmcode {
 
 LLVMcode *codehd = NULL; /* 命令列の先頭のアドレスを保持するポインタ */
 LLVMcode *codetl = NULL; /* 命令列の末尾のアドレスを保持するポインタ */
-
-Factorstack fstack; /* 整数もしくはレジスタ番号を保持するスタック */
+unsigned int cntr = 0;
 
 /* LLVMの関数定義 */
 typedef struct fundecl {
@@ -101,67 +107,113 @@ Fundecl *declhd = NULL;
 /* 関数定義の線形リストの末尾の要素のアドレスを保持するポインタ */
 Fundecl *decltl = NULL;
 
-
-void displayFactor( Factor factor ){
+/* Factorの表示 */
+void displayFactor(FILE *fp, Factor factor ){
   switch(factor.type){
     case GLOBAL_VAR:
-      printf("@%s", factor.vname);
+      fprintf(fp, "@%s", factor.vname);
       break;
     case LOCAL_VAR:
-      printf("%%%d", factor.val);
+      fprintf(fp, "%%%d", factor.val);
       break;
     case CONSTANT:
-      printf("%d", factor.val);
+      fprintf(fp, "%d", factor.val);
       break;
     default:
       break;
   }
 }
 
-void displayLlvmcodes( LLVMcode *code) {
-  if (code == NULL) return;
-  printf(" ");
-  switch (code->command){
-    case CommonGlobal:
-      displayFactor( (code->args).common_global.retval );
-      printf(" = common global i32 0, align 4\n");
-      break;
-    case Alloca:
-      displayFactor( (code->args).alloca.retval );
-      printf(" = alloca i32, align 4\n");
-      break;
-  case Store:
-      printf("store i32 ");
-      displayFactor( (code->args).store.arg2 );
-      printf(", i32* ");
-      displayFactor( (code->args).store.arg1 );
-      printf(", align 4\n");
+Factor factorpop() {
+  int i;
+  fprintf(stderr, "FACTOR POP! (index: %d)\n", fstack.top);
 
-      break;
-  }
-  displayLlvmcodes(code->next);
+  Factor tmp;
+  tmp = fstack.element[fstack.top];
+  fstack.top --;
+  return tmp;
 }
 
-void displayLlvmfundecl( Fundecl *decl ) {
+void factorpush(Factor x) {
+  int i;
+
+  fstack.top ++;
+  fstack.element[fstack.top] = x;
+
+  fprintf(stderr, "FACTOR PUSH! (index: %d)\n", fstack.top);
+
+  return;
+}
+
+/* LLVMコードを表示する */
+void displayLlvmcodes(FILE *fp, LLVMcode *code) {
+  if (code == NULL) return;
+  fprintf(fp, "  ");
+  switch (code->command){
+    case CommonGlobal:
+      displayFactor(fp, (code->args).common_global.retval );
+      fprintf(fp, " = common global i32 0, align 4\n");
+      break;
+    case Alloca:
+      displayFactor(fp, (code->args).alloca.retval );
+      fprintf(fp, " = alloca i32, align 4\n");
+      break;
+    case Store:
+      fprintf(fp, "store i32 ");
+      displayFactor(fp, (code->args).store.arg1 );
+      fprintf(fp, ", i32* ");
+      displayFactor(fp, (code->args).store.arg2 );
+      fprintf(fp, ", align 4\n");
+      break;
+    case Load:
+      displayFactor(fp, (code->args).load.retval );
+      fprintf(fp, " = load i32, i32* ");
+      displayFactor(fp, (code->args).load.arg1 );
+      fprintf(fp, ", align 4\n");
+      break;
+    case Add:
+      displayFactor(fp, (code->args).add.retval );
+      fprintf(fp, " = add nsw i32 ");
+      displayFactor(fp, (code->args).add.arg1 );
+      fprintf(fp, ", ");
+      displayFactor(fp, (code->args).add.arg2 );
+      fprintf(fp, ", align 4\n");
+      break;
+  }
+  displayLlvmcodes(fp, code->next);
+}
+
+/* 手続きを表示する */
+void displayLlvmfundecl(FILE *fp, Fundecl *decl ) {
   if (decl == NULL) return;
-  printf("define i32 @%s #0() {\n", decl->fname);
-  displayLlvmcodes(decl->codes);
-  printf("}\n");
+  fprintf(fp, "define i32 @%s #0() {\n", decl->fname);
+  displayLlvmcodes(fp, decl->codes);
+  fprintf(fp, "}\n");
   if(decl->next != NULL) {
-    printf("\n");
-    displayLlvmfundecl(decl->next);
+    fprintf(fp, "\n");
+    displayLlvmfundecl(fp, decl->next);
   }
   return;
 }
 
 void outputCode () {
   fprintf(stderr, "OUTPUT CODE\n");
-  displayLlvmcodes(codehd);
-  displayLlvmfundecl(declhd);
 
+  FILE *outputfile;
+  outputfile = fopen("result.ll", "w");
+  if (outputfile == NULL) {
+    fprintf(stderr, "unexpected error\n");
+    exit(1);
+  }
+
+  displayLlvmcodes(outputfile, codehd);
+  displayLlvmfundecl(outputfile, declhd);
+
+  fclose(outputfile);
 }
 
-void defineGlobalVar( char *var_name ) {
+/* LLVM Common Global命令の作成 */
+LLVMcode *defineGlobalVar( char *var_name ) {
   fprintf(stderr, "DEFINE GLOBAL VARIABLE: %s\n", var_name);
 
   LLVMcode *tmp;
@@ -185,6 +237,7 @@ void defineGlobalVar( char *var_name ) {
   }
 }
 
+/* LLVM Alloca命令の作成 */
 LLVMcode *defineAlloca(int reg) {
   fprintf(stderr, "DEFINE ALLOCA: %%%d\n", reg);
 
@@ -198,10 +251,18 @@ LLVMcode *defineAlloca(int reg) {
   retval.val = reg;
   (tmp->args).alloca.retval = retval;
 
+  if (codetl == NULL){
+    codetl = tmp;
+  } else {
+    codetl->next = tmp;
+    codetl = tmp;
+  }
+
   return tmp;
 }
 
-LLVMcode *defineStore(Factor *arg1, Factor *arg2) {
+/* LLVM Store命令の作成 */
+LLVMcode *defineStore(Factor arg1, Factor arg2) {
   fprintf(stderr, "DEFINE STORE\n");
 
   LLVMcode *tmp;
@@ -209,32 +270,152 @@ LLVMcode *defineStore(Factor *arg1, Factor *arg2) {
   tmp->next = NULL;
   tmp->command = Store;
 
-  (tmp->args).store.arg1 = *arg1;
-  (tmp->args).store.arg2 = *arg2;
+  (tmp->args).store.arg1 = arg1;
+  (tmp->args).store.arg2 = arg2;
+
+  if (codetl == NULL){
+    codetl = tmp;
+  } else {
+    codetl->next = tmp;
+    codetl = tmp;
+  }
 
   return tmp;
 }
 
+/* LLVM Load命令の作成 */
+LLVMcode *defineLoad(Factor arg1) {
+  fprintf(stderr, "DEFINE LOAD\n");
 
-void defineLocalVar( char *var_name ) {
-  fprintf(stderr, "DEFINE LOCAL VARIABLE: %s\n", var_name);
+  LLVMcode *tmp;
+  tmp = (LLVMcode *)malloc(sizeof(LLVMcode));
+  tmp->next = NULL;
+  tmp->command = Load;
+
+  Factor retval;
+  retval.type = LOCAL_VAR;
+  retval.val = cntr;
+  cntr++;
+
+  (tmp->args).load.arg1 = arg1;
+  (tmp->args).load.retval = retval;
+
+  factorpush(retval);
+
+  if (codetl == NULL){
+    codetl = tmp;
+  } else {
+    codetl->next = tmp;
+    codetl = tmp;
+  }
+
+  return tmp;
 }
 
-void defineProcedure(char *proc_name) {
+/* LLVM Add命令の作成 */
+LLVMcode *defineAdd(Factor arg1, Factor arg2) {
+  fprintf(stderr, "DEFINE LOAD\n");
+
+  LLVMcode *tmp;
+  tmp = (LLVMcode *)malloc(sizeof(LLVMcode));
+  tmp->next = NULL;
+  tmp->command = Add;
+
+  Factor retval;
+  retval.type = LOCAL_VAR;
+  retval.val = cntr;
+  cntr++;
+
+  (tmp->args).add.arg1 = arg1;
+  (tmp->args).add.arg2 = arg2;
+  (tmp->args).add.retval = retval;
+
+  factorpush(retval);
+
+  if (codetl == NULL){
+    codetl = tmp;
+  } else {
+    codetl->next = tmp;
+    codetl = tmp;
+  }
+
+  return tmp;
+}
+
+/* 数字をFactorとして追加 */
+void pushNumber(int number) {
+  fprintf(stderr, "PUSH NUMBER %d\n", number);
+
+  Factor tmp;
+  tmp.type = CONSTANT;
+  tmp.val = number;
+
+  factorpush(tmp);
+}
+
+/* 変数をFactorとして追加 */
+void pushVariable(char *var_name, Scope type) {
+  fprintf(stderr, "PUSH VARIABLE %s(%d)\n", var_name, type);
+
+  Factor tmp;
+  tmp.type = type;
+  strcpy(tmp.vname, var_name);
+
+  factorpush(tmp);
+
+}
+
+/* 変数代入の実装 */
+void doAssign() {
+  fprintf(stderr, "DEFINE ASSIGNMENT\n");
+
+  Factor arg1, arg2;
+  arg1 = factorpop();
+  arg2 = factorpop();
+
+  defineStore(arg1, arg2);
+}
+
+/* 変数参照の実装 */
+void doReference() {
+  fprintf(stderr, "DEFINE REFERENCE\n");
+
+  Factor arg1;
+  arg1 = factorpop();
+
+  defineLoad(arg1);
+}
+
+/* 足し算の実行 */
+void doAdd() {
+  fprintf(stderr, "DEFINE ADD\n");
+
+  Factor arg1, arg2;
+  arg2 = factorpop();
+  arg1 = factorpop();
+
+  defineAdd(arg1, arg2);
+}
+
+/* mainを含めた手続き／関数の実装 */
+void doProcedure(char *proc_name) {
   fprintf(stderr, "DEFINE PROCEDURE: %s\n", proc_name);
+  codetl = NULL;
+  cntr = 1;
 
   LLVMcode *alloca_statement = defineAlloca(1);
 
   Factor arg1, arg2;
-  arg1.type = LOCAL_VAR;
-  arg1.val = 1;
 
-  arg2.type = CONSTANT;
-  arg2.val = 0;
+  arg1.type = CONSTANT;
+  arg1.val = 0;
+
+  arg2.type = LOCAL_VAR;
+  arg2.val = cntr;
+  cntr ++;
 
 
-  LLVMcode *store_statement = defineStore(&arg1, &arg2);
-  alloca_statement->next = store_statement;
+  LLVMcode *store_statement = defineStore(arg1, arg2);
 
   Fundecl *tmp;
   tmp = (Fundecl *)malloc(sizeof(Fundecl));
@@ -250,5 +431,4 @@ void defineProcedure(char *proc_name) {
     decltl->next = tmp;
     decltl = tmp;
   }
-
 }

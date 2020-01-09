@@ -1,5 +1,5 @@
 /* 記号表の管理 + 変数・定数の区別用 */
-typedef enum { 
+typedef enum {
   GLOBAL_VAR, /* 大域変数 */
   LOCAL_VAR,  /* 局所変数 */
   PROC_NAME,  /* 手続き   */
@@ -7,7 +7,7 @@ typedef enum {
 } Scope;
 
 /* LLVM命令名の定義 */
-typedef enum { 
+typedef enum {
   Alloca,   /* alloca */
   Store,    /* store  */
   Load,     /* load   */
@@ -21,7 +21,7 @@ typedef enum {
 } LLVMcommand;
 
 /* 比較演算子の種類 */
-typedef enum { 
+typedef enum {
   EQUAL, /* eq （==）*/
   NE,    /* ne （!=）*/
   SGT,   /* sgt （>，符号付き） */
@@ -107,12 +107,12 @@ void fuctorpush(Factor x) {
 * LLVMの関数定義 */
 typedef struct fundecl {
   char fname[256];      /* 関数名                      */
-  unsigned arity;       /* 引数個数                    */ 
+  unsigned arity;       /* 引数個数                    */
   Factor args[10];      /* 引数名                      */
   LLVMcode *codes;      /* 命令列の線形リストへのポインタ */
   struct fundecl *next; /* 次の関数定義へのポインタ      */
 } Fundecl;
- 
+
 /* 関数定義の線形リストの先頭の要素のアドレスを保持するポインタ */
 Fundecl *declhd = NULL;
 /* 関数定義の線形リストの末尾の要素のアドレスを保持するポインタ */

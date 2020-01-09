@@ -12,13 +12,14 @@ typedef struct {
   char *var_name;
   int reg;
   Scope scope;
-  
+
 } SymbolTable;
 
 /* define stack and stack length */
 SymbolTable symbol_table[1024];
 int symbol_table_length = 0;
 int is_local_variable = 0;
+int reg_cntr = 1;
 
 void insert(char *vn, Scope scope)
 {
@@ -34,13 +35,15 @@ void insert(char *vn, Scope scope)
 
   // assignment to table
   symbol_table[symbol_table_length].var_name = var_name;
-  symbol_table[symbol_table_length].reg = symbol_table_length + 2;
 
   if (scope == UNDEFINED_VAR) {
     if (is_local_variable == 1) {
       symbol_table[symbol_table_length].scope = LOCAL_VAR;
+      symbol_table[symbol_table_length].reg = reg_cntr;
+      reg_cntr ++;
     } else {
       symbol_table[symbol_table_length].scope = GLOBAL_VAR;
+      symbol_table[symbol_table_length].reg = 0;
       defineGlobalVar(var_name);
     }
   } else {
@@ -48,11 +51,12 @@ void insert(char *vn, Scope scope)
   }
 
   if (scope == PROC_NAME) {
-    defineProcedure(var_name);
+    doProcedure(var_name);
     is_local_variable = 1;
+    reg_cntr = 2;
   }
   symbol_table_length++;
-  /*
+
   // show symbol table
   for (i=0;i<symbol_table_length;i++)
   {
@@ -73,7 +77,7 @@ void insert(char *vn, Scope scope)
     }
   }
   fprintf(stderr, "\n");
-  */
+
 }
 
 int lookup(char *vn)
@@ -99,6 +103,7 @@ int lookup(char *vn)
           break;
       }
       fprintf(stderr, "\n");
+      pushVariable(symbol_table[i].var_name, symbol_table[i].scope);
       return i;
     }
   }
@@ -144,5 +149,5 @@ void delete()
   }
   fprintf(stderr, "\n");
 
-  
+
 }

@@ -1,8 +1,10 @@
 #ifndef _LLVM_H_
 #define _LLVM_H_
 
-void defineGlobalVar( char *var_name );
-void defineProcedure( char *proc_name );
+void init_fstack();
+void pushNumber(int number);
+void loadVariable(char *var_name, Scope type);
+
 void outputCode ();
 
 #endif // _LLVM_H_
