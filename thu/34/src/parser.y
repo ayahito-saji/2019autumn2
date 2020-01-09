@@ -162,7 +162,7 @@ expression
         | PLUS term
         | MINUS term
         | expression PLUS term { doAdd(); }
-        | expression MINUS term
+        | expression MINUS term { doSub(); }
         ;
 
 term

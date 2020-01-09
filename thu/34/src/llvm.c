@@ -13,6 +13,8 @@ typedef enum {
   Label,    /* label  */
   Add,      /* add    */
   Sub,      /* sub    */
+  Mul,      /* mul    */
+  Div,      /* div    */
   Icmp,     /* icmp   */
   Ret,      /* ret    */
   CommonGlobal /* common_global */ /* 実験4 追加 */
@@ -179,6 +181,14 @@ void displayLlvmcodes(FILE *fp, LLVMcode *code) {
       displayFactor(fp, (code->args).add.arg2 );
       fprintf(fp, ", align 4\n");
       break;
+    case Sub:
+      displayFactor(fp, (code->args).sub.retval );
+      fprintf(fp, " = sub nsw i32 ");
+      displayFactor(fp, (code->args).sub.arg1 );
+      fprintf(fp, ", ");
+      displayFactor(fp, (code->args).sub.arg2 );
+      fprintf(fp, ", align 4\n");
+      break;
   }
   displayLlvmcodes(fp, code->next);
 }
@@ -314,7 +324,7 @@ LLVMcode *defineLoad(Factor arg1) {
 
 /* LLVM Add命令の作成 */
 LLVMcode *defineAdd(Factor arg1, Factor arg2) {
-  fprintf(stderr, "DEFINE LOAD\n");
+  fprintf(stderr, "DEFINE ADD\n");
 
   LLVMcode *tmp;
   tmp = (LLVMcode *)malloc(sizeof(LLVMcode));
@@ -329,6 +339,36 @@ LLVMcode *defineAdd(Factor arg1, Factor arg2) {
   (tmp->args).add.arg1 = arg1;
   (tmp->args).add.arg2 = arg2;
   (tmp->args).add.retval = retval;
+
+  factorpush(retval);
+
+  if (codetl == NULL){
+    codetl = tmp;
+  } else {
+    codetl->next = tmp;
+    codetl = tmp;
+  }
+
+  return tmp;
+}
+
+/* LLVM Sub命令の作成 */
+LLVMcode *defineSub(Factor arg1, Factor arg2) {
+  fprintf(stderr, "DEFINE SUB\n");
+
+  LLVMcode *tmp;
+  tmp = (LLVMcode *)malloc(sizeof(LLVMcode));
+  tmp->next = NULL;
+  tmp->command = Sub;
+
+  Factor retval;
+  retval.type = LOCAL_VAR;
+  retval.val = cntr;
+  cntr++;
+
+  (tmp->args).sub.arg1 = arg1;
+  (tmp->args).sub.arg2 = arg2;
+  (tmp->args).sub.retval = retval;
 
   factorpush(retval);
 
@@ -397,6 +437,16 @@ void doAdd() {
   defineAdd(arg1, arg2);
 }
 
+/* 引き算の実行 */
+void doSub() {
+  fprintf(stderr, "DEFINE SUB\n");
+
+  Factor arg1, arg2;
+  arg2 = factorpop();
+  arg1 = factorpop();
+
+  defineSub(arg1, arg2);
+}
 /* mainを含めた手続き／関数の実装 */
 void doProcedure(char *proc_name) {
   fprintf(stderr, "DEFINE PROCEDURE: %s\n", proc_name);

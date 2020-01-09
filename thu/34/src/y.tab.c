@@ -626,6 +626,10 @@ case 51:
 #line 164 "parser.y"
 	{ doAdd(); }
 break;
+case 52:
+#line 165 "parser.y"
+	{ doSub(); }
+break;
 case 57:
 #line 176 "parser.y"
 	{ pushNumber(yystack.l_mark[0].num); }
@@ -642,7 +646,7 @@ case 63:
 #line 191 "parser.y"
 	{ insert(yystack.l_mark[0].ident, UNDEFINED_VAR); }
 break;
-#line 645 "y.tab.c"
+#line 649 "y.tab.c"
     }
     yystack.s_mark -= yym;
     yystate = *yystack.s_mark;
