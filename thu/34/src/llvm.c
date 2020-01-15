@@ -109,6 +109,61 @@ Fundecl *declhd = NULL;
 /* 関数定義の線形リストの末尾の要素のアドレスを保持するポインタ */
 Fundecl *decltl = NULL;
 
+/* ラベルを必要とする構文 */
+typedef enum {
+  While,
+  If,
+  For
+} labelSyntaxCommand;
+
+/* ラベルを必要とする構文 */
+typedef struct labelSyntax {
+  labelSyntaxCommand command;
+  union {
+    struct { /* while文のラベル */
+      int label1;
+      LLVMcode *br1;
+      LLVMcode *br2;
+      LLVMcode *br3;
+    } While;
+  } labels;
+} LabelSyntax;
+
+/* ラベルを必要とする構文のスタック */
+typedef struct {
+  LabelSyntax elements[100];
+  unsigned int top;
+} LabelSyntaxStack;
+
+LabelSyntaxStack lstack;
+
+void init_lstack(){ /* lstackの初期化 */
+  lstack.top = 0;
+  return;
+}
+
+void pushLabelSyntax(LabelSyntax x) {
+  lstack.top ++;
+  lstack.elements[lstack.top] = x;
+}
+
+LabelSyntax popLabelSyntax() {
+  LabelSyntax tmp;
+  tmp = lstack.elements[lstack.top];
+  lstack.top --;
+  return tmp;
+}
+
+LabelSyntax getLabelSyntax() {
+  return lstack.elements[lstack.top];
+}
+void displayLabelSyntax(LabelSyntax labelSyntax) {
+  switch (labelSyntax.command) {
+    case While:
+    fprintf(stderr, "While: %d %p %p\n", labelSyntax.labels.While.label1, labelSyntax.labels.While.br1, labelSyntax.labels.While.br2);
+  }
+}
+
 /* Factorの表示 */
 void displayFactor(FILE *fp, Factor factor ){
   switch(factor.type){
@@ -128,7 +183,7 @@ void displayFactor(FILE *fp, Factor factor ){
 
 Factor factorpop() {
   int i;
-  fprintf(stderr, "FACTOR POP! (index: %d)\n", fstack.top);
+  // fprintf(stderr, "FACTOR POP! (index: %d)\n", fstack.top);
 
   Factor tmp;
   tmp = fstack.element[fstack.top];
@@ -142,7 +197,7 @@ void factorpush(Factor x) {
   fstack.top ++;
   fstack.element[fstack.top] = x;
 
-  fprintf(stderr, "FACTOR PUSH! (index: %d)\n", fstack.top);
+  // fprintf(stderr, "FACTOR PUSH! (index: %d)\n", fstack.top);
 
   return;
 }
@@ -172,6 +227,17 @@ void displayLlvmcodes(FILE *fp, LLVMcode *code) {
       fprintf(fp, " = load i32, i32* ");
       displayFactor(fp, (code->args).load.arg1 );
       fprintf(fp, ", align 4\n");
+      break;
+    case BrUncond:
+      fprintf(fp, "br label %%%d\n\n", (code->args).bruncond.arg1);
+      break;
+    case BrCond:
+      fprintf(fp, "br label i1 %%");
+      displayFactor(fp, (code->args).brcond.arg1 );
+      fprintf(fp, ", label %%%d, label %%%d\n\n", (code->args).brcond.arg2, (code->args).brcond.arg3);
+      break;
+    case Label:
+      fprintf(fp, "; <label>:%d:\n", (code->args).label.l);
       break;
     case Add:
       displayFactor(fp, (code->args).add.retval );
@@ -207,7 +273,7 @@ void displayLlvmfundecl(FILE *fp, Fundecl *decl ) {
 }
 
 void outputCode () {
-  fprintf(stderr, "OUTPUT CODE\n");
+  // fprintf(stderr, "OUTPUT CODE\n");
 
   FILE *outputfile;
   outputfile = fopen("result.ll", "w");
@@ -224,7 +290,7 @@ void outputCode () {
 
 /* LLVM Common Global命令の作成 */
 LLVMcode *defineGlobalVar( char *var_name ) {
-  fprintf(stderr, "DEFINE GLOBAL VARIABLE: %s\n", var_name);
+  // fprintf(stderr, "DEFINE GLOBAL VARIABLE: %s\n", var_name);
 
   LLVMcode *tmp;
   Factor retval;
@@ -249,7 +315,7 @@ LLVMcode *defineGlobalVar( char *var_name ) {
 
 /* LLVM Alloca命令の作成 */
 LLVMcode *defineAlloca(int reg) {
-  fprintf(stderr, "DEFINE ALLOCA: %%%d\n", reg);
+  // fprintf(stderr, "DEFINE ALLOCA: %%%d\n", reg);
 
   LLVMcode *tmp;
   tmp = (LLVMcode *)malloc(sizeof(LLVMcode));
@@ -273,7 +339,7 @@ LLVMcode *defineAlloca(int reg) {
 
 /* LLVM Store命令の作成 */
 LLVMcode *defineStore(Factor arg1, Factor arg2) {
-  fprintf(stderr, "DEFINE STORE\n");
+  // fprintf(stderr, "DEFINE STORE\n");
 
   LLVMcode *tmp;
   tmp = (LLVMcode *)malloc(sizeof(LLVMcode));
@@ -295,7 +361,7 @@ LLVMcode *defineStore(Factor arg1, Factor arg2) {
 
 /* LLVM Load命令の作成 */
 LLVMcode *defineLoad(Factor arg1) {
-  fprintf(stderr, "DEFINE LOAD\n");
+  // fprintf(stderr, "DEFINE LOAD\n");
 
   LLVMcode *tmp;
   tmp = (LLVMcode *)malloc(sizeof(LLVMcode));
@@ -324,7 +390,7 @@ LLVMcode *defineLoad(Factor arg1) {
 
 /* LLVM Add命令の作成 */
 LLVMcode *defineAdd(Factor arg1, Factor arg2) {
-  fprintf(stderr, "DEFINE ADD\n");
+  // fprintf(stderr, "DEFINE ADD\n");
 
   LLVMcode *tmp;
   tmp = (LLVMcode *)malloc(sizeof(LLVMcode));
@@ -354,7 +420,7 @@ LLVMcode *defineAdd(Factor arg1, Factor arg2) {
 
 /* LLVM Sub命令の作成 */
 LLVMcode *defineSub(Factor arg1, Factor arg2) {
-  fprintf(stderr, "DEFINE SUB\n");
+  // fprintf(stderr, "DEFINE SUB\n");
 
   LLVMcode *tmp;
   tmp = (LLVMcode *)malloc(sizeof(LLVMcode));
@@ -382,9 +448,73 @@ LLVMcode *defineSub(Factor arg1, Factor arg2) {
   return tmp;
 }
 
+/* LLVM Br命令の作成 */
+LLVMcode *defineBr(int arg1) {
+  fprintf(stderr, "DEFINE BR\n");
+
+  LLVMcode *tmp;
+  tmp = (LLVMcode *)malloc(sizeof(LLVMcode));
+  tmp->next = NULL;
+  tmp->command = BrUncond;
+
+  (tmp->args).bruncond.arg1 = arg1;
+
+  if (codetl == NULL){
+    codetl = tmp;
+  } else {
+    codetl->next = tmp;
+    codetl = tmp;
+  }
+
+  return tmp;
+}
+/* LLVM Br Condition命令の作成 */
+LLVMcode *defineBrCondition(int arg2, int arg3) {
+  fprintf(stderr, "DEFINE BR CONDITION\n");
+
+  LLVMcode *tmp;
+  tmp = (LLVMcode *)malloc(sizeof(LLVMcode));
+  tmp->next = NULL;
+  tmp->command = BrCond;
+
+  (tmp->args).brcond.arg1 = factorpop();
+  (tmp->args).brcond.arg2 = arg2;
+  (tmp->args).brcond.arg3 = arg3;
+
+  if (codetl == NULL){
+    codetl = tmp;
+  } else {
+    codetl->next = tmp;
+    codetl = tmp;
+  }
+
+  return tmp;
+}
+/* LLVM Label命令の作成 */
+LLVMcode *defineLabel() {
+  fprintf(stderr, "DEFINE LABEL\n");
+
+  LLVMcode *tmp;
+  tmp = (LLVMcode *)malloc(sizeof(LLVMcode));
+  tmp->next = NULL;
+  tmp->command = Label;
+
+  (tmp->args).label.l = cntr;
+  cntr ++;
+
+  if (codetl == NULL){
+    codetl = tmp;
+  } else {
+    codetl->next = tmp;
+    codetl = tmp;
+  }
+
+  return tmp;
+}
+
 /* 数字をFactorとして追加 */
 void pushNumber(int number) {
-  fprintf(stderr, "PUSH NUMBER %d\n", number);
+  // fprintf(stderr, "PUSH NUMBER %d\n", number);
 
   Factor tmp;
   tmp.type = CONSTANT;
@@ -395,7 +525,7 @@ void pushNumber(int number) {
 
 /* 変数をFactorとして追加 */
 void pushVariable(char *var_name, Scope type) {
-  fprintf(stderr, "PUSH VARIABLE %s(%d)\n", var_name, type);
+  // fprintf(stderr, "PUSH VARIABLE %s(%d)\n", var_name, type);
 
   Factor tmp;
   tmp.type = type;
@@ -407,7 +537,7 @@ void pushVariable(char *var_name, Scope type) {
 
 /* 変数代入の実装 */
 void doAssign() {
-  fprintf(stderr, "DEFINE ASSIGNMENT\n");
+  // fprintf(stderr, "DEFINE ASSIGNMENT\n");
 
   Factor arg1, arg2;
   arg1 = factorpop();
@@ -418,7 +548,7 @@ void doAssign() {
 
 /* 変数参照の実装 */
 void doReference() {
-  fprintf(stderr, "DEFINE REFERENCE\n");
+  // fprintf(stderr, "DEFINE REFERENCE\n");
 
   Factor arg1;
   arg1 = factorpop();
@@ -428,7 +558,7 @@ void doReference() {
 
 /* 足し算の実行 */
 void doAdd() {
-  fprintf(stderr, "DEFINE ADD\n");
+  // fprintf(stderr, "DEFINE ADD\n");
 
   Factor arg1, arg2;
   arg2 = factorpop();
@@ -439,7 +569,7 @@ void doAdd() {
 
 /* 引き算の実行 */
 void doSub() {
-  fprintf(stderr, "DEFINE SUB\n");
+  // fprintf(stderr, "DEFINE SUB\n");
 
   Factor arg1, arg2;
   arg2 = factorpop();
@@ -447,9 +577,10 @@ void doSub() {
 
   defineSub(arg1, arg2);
 }
+
 /* mainを含めた手続き／関数の実装 */
 void doProcedure(char *proc_name) {
-  fprintf(stderr, "DEFINE PROCEDURE: %s\n", proc_name);
+  // fprintf(stderr, "DEFINE PROCEDURE: %s\n", proc_name);
   codetl = NULL;
   cntr = 1;
 
@@ -481,4 +612,36 @@ void doProcedure(char *proc_name) {
     decltl->next = tmp;
     decltl = tmp;
   }
+}
+
+void doWhileInit() {
+  LabelSyntax lsyntax;
+  lsyntax.command = While;
+  lsyntax.labels.While.br1 = defineBr(1);
+  lsyntax.labels.While.label1 = defineLabel()->args.label.l;
+  lsyntax.labels.While.br1->args.bruncond.arg1 = lsyntax.labels.While.label1;
+  lsyntax.labels.While.br2 = NULL;
+  lsyntax.labels.While.br3 = NULL;
+  displayLabelSyntax(lsyntax);
+
+  pushLabelSyntax(lsyntax);
+}
+
+void doWhileCondition() {
+  LabelSyntax lsyntax = popLabelSyntax(lsyntax);
+  lsyntax.labels.While.br2 = defineBrCondition(1, 1);
+  pushLabelSyntax(lsyntax);
+  displayLabelSyntax(lsyntax);
+}
+
+void doWhileStart() {
+  LabelSyntax lsyntax = popLabelSyntax(lsyntax);
+  lsyntax.labels.While.br1->args.brcond.arg2 = defineLabel()->args.label.l;
+  pushLabelSyntax(lsyntax);
+  displayLabelSyntax(lsyntax);
+}
+
+void doWhileEnd() {
+  LabelSyntax lsyntax = getLabelSyntax(lsyntax);
+  displayLabelSyntax(lsyntax);
 }

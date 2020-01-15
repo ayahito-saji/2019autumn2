@@ -30,7 +30,7 @@ void insert(char *vn, Scope scope)
   strcpy(var_name, vn);
 
   // show action
-  // fprintf(stderr, "variable \'%s\' inserted!!(%d)\n", var_name, yylineno);
+  fprintf(stderr, "variable \'%s\' inserted!!(%d)\n", var_name, yylineno);
   // fprintf(stderr, "--------------------------\n");
 
   // assignment to table
@@ -115,7 +115,7 @@ void delete()
   int i;
   SymbolTable target_symbol;
   fprintf(stderr, "deleted!!\n");
-  fprintf(stderr, "--------------------------\n");
+  // fprintf(stderr, "--------------------------\n");
   while (1) {
     target_symbol = symbol_table[symbol_table_length-1];
     if (target_symbol.scope == LOCAL_VAR)

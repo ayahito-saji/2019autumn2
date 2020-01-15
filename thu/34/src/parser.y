@@ -39,7 +39,7 @@ extern char *yytext;
 %%
 
 program
-        : { init_fstack(); } PROGRAM IDENT SEMICOLON outblock PERIOD { outputCode(); }
+        : { init_fstack();init_lstack(); } PROGRAM IDENT SEMICOLON outblock PERIOD { outputCode(); }
         ;
 
 outblock
@@ -117,7 +117,7 @@ else_statement
         ;
 
 while_statement
-        : WHILE condition DO statement
+        : WHILE { doWhileInit(); } condition { doWhileCondition(); } DO { doWhileStart(); }  statement { doWhileEnd(); }
         ;
 
 for_statement
@@ -153,7 +153,7 @@ condition
         | expression NEQ expression
         | expression LT expression
         | expression LE expression
-        | expression GT expression
+        | expression GT expression { doGreater(); }
         | expression GE expression
         ;
 
