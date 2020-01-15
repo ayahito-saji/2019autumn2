@@ -167,6 +167,19 @@
 extern int yylineno;
 extern char *yytext;
 
+extern Factorstack fstack; /* 整数もしくはレジスタ番号を保持するスタック */
+
+extern LLVMcode *codehd; /* 命令列の先頭のアドレスを保持するポインタ */
+extern LLVMcode *codetl; /* 命令列の末尾のアドレスを保持するポインタ */
+extern unsigned int cntr;
+
+/* 関数定義の線形リストの先頭の要素のアドレスを保持するポインタ */
+extern Fundecl *declhd;
+/* 関数定義の線形リストの末尾の要素のアドレスを保持するポインタ */
+extern Fundecl *decltl;
+
+extern LabelSyntaxStack lstack;
+
 
 
 /* Enabling traces.  */
@@ -189,13 +202,13 @@ extern char *yytext;
 
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 typedef union YYSTYPE
-#line 19 "parser.y"
+#line 32 "parser.y"
 {
     int num;
     char ident[MAXLENGTH+1];
 }
 /* Line 193 of yacc.c.  */
-#line 199 "y.tab.c"
+#line 212 "y.tab.c"
 	YYSTYPE;
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
 # define YYSTYPE_IS_DECLARED 1
@@ -208,7 +221,7 @@ typedef union YYSTYPE
 
 
 /* Line 216 of yacc.c.  */
-#line 212 "y.tab.c"
+#line 225 "y.tab.c"
 
 #ifdef short
 # undef short
@@ -518,13 +531,13 @@ static const yytype_int8 yyrhs[] =
 /* YYRLINE[YYN] -- source line where rule number YYN was defined.  */
 static const yytype_uint8 yyrline[] =
 {
-       0,    42,    42,    42,    46,    46,    49,    51,    55,    56,
-      60,    64,    65,    69,    70,    74,    78,    82,    86,    90,
-      91,    95,    96,    97,    98,    99,   100,   101,   102,   103,
-     107,   107,   111,   115,   116,   120,   120,   120,   120,   124,
-     128,   132,   136,   140,   144,   147,   152,   153,   154,   155,
-     156,   157,   161,   162,   163,   164,   165,   169,   170,   171,
-     175,   176,   177,   181,   190,   191
+       0,    55,    55,    55,    62,    62,    65,    67,    71,    72,
+      76,    80,    81,    85,    86,    90,    94,    98,   102,   106,
+     107,   111,   112,   113,   114,   115,   116,   117,   118,   119,
+     123,   123,   132,   136,   137,   141,   151,   156,   141,   168,
+     172,   176,   180,   184,   188,   191,   196,   197,   198,   199,
+     200,   201,   205,   206,   207,   208,   215,   225,   226,   227,
+     231,   232,   233,   237,   251,   252
 };
 #endif
 
@@ -1505,113 +1518,161 @@ yyreduce:
   switch (yyn)
     {
         case 2:
-#line 42 "parser.y"
-    { init_fstack();init_lstack(); }
+#line 55 "parser.y"
+    {
+            fstack.top = 0;
+            lstack.top = 0;
+          }
     break;
 
   case 3:
-#line 42 "parser.y"
+#line 58 "parser.y"
     { outputCode(); }
     break;
 
   case 4:
-#line 46 "parser.y"
+#line 62 "parser.y"
     { doProcedure("main"); }
     break;
 
   case 5:
-#line 46 "parser.y"
+#line 62 "parser.y"
     { delete(); }
     break;
 
   case 16:
-#line 78 "parser.y"
+#line 94 "parser.y"
     { delete(); }
     break;
 
   case 17:
-#line 82 "parser.y"
+#line 98 "parser.y"
     { insert((yyvsp[(1) - (1)].ident), PROC_NAME); }
     break;
 
   case 30:
-#line 107 "parser.y"
+#line 123 "parser.y"
     { lookup((yyvsp[(1) - (1)].ident)); }
     break;
 
   case 31:
-#line 107 "parser.y"
-    { doAssign(); }
+#line 123 "parser.y"
+    {
+            Factor arg1, arg2;
+            arg1 = factorpop();
+            arg2 = factorpop();
+            defineStore(arg1, arg2);
+          }
     break;
 
   case 35:
-#line 120 "parser.y"
-    { doWhileInit(); }
+#line 141 "parser.y"
+    {
+            LabelSyntax lsyntax;
+            lsyntax.command = While;
+            lsyntax.labels.While.br1 = defineBr(1);
+            lsyntax.labels.While.label1 = defineLabel()->args.label.l;
+            lsyntax.labels.While.br1->args.bruncond.arg1 = lsyntax.labels.While.label1;
+            lsyntax.labels.While.br2 = NULL;
+            lsyntax.labels.While.br3 = NULL;
+            displayLabelSyntax(lsyntax);
+            pushLabelSyntax(lsyntax);
+          }
     break;
 
   case 36:
-#line 120 "parser.y"
-    { doWhileCondition(); }
+#line 151 "parser.y"
+    {
+            LabelSyntax lsyntax = popLabelSyntax();
+            lsyntax.labels.While.br2 = defineBrCondition(1, 1);
+            pushLabelSyntax(lsyntax);
+            displayLabelSyntax(lsyntax);
+          }
     break;
 
   case 37:
-#line 120 "parser.y"
-    { doWhileStart(); }
+#line 156 "parser.y"
+    {
+            LabelSyntax lsyntax = popLabelSyntax();
+            lsyntax.labels.While.br1->args.brcond.arg2 = defineLabel()->args.label.l;
+            pushLabelSyntax(lsyntax);
+            displayLabelSyntax(lsyntax);
+          }
     break;
 
   case 38:
-#line 120 "parser.y"
-    { doWhileEnd(); }
+#line 161 "parser.y"
+    {
+            LabelSyntax lsyntax = getLabelSyntax();
+            displayLabelSyntax(lsyntax);
+          }
     break;
 
   case 41:
-#line 132 "parser.y"
+#line 176 "parser.y"
     { lookup((yyvsp[(1) - (1)].ident)); }
     break;
 
   case 43:
-#line 140 "parser.y"
+#line 184 "parser.y"
     { lookup((yyvsp[(3) - (4)].ident)); }
     break;
 
   case 44:
-#line 144 "parser.y"
+#line 188 "parser.y"
     { lookup((yyvsp[(3) - (4)].ident)); }
     break;
 
   case 55:
-#line 164 "parser.y"
-    { doAdd(); }
+#line 208 "parser.y"
+    {
+            Factor arg1, arg2;
+            arg2 = factorpop();
+            arg1 = factorpop();
+
+            defineAdd(arg1, arg2);
+          }
     break;
 
   case 56:
-#line 165 "parser.y"
-    { doSub(); }
+#line 215 "parser.y"
+    {
+            Factor arg1, arg2;
+            arg2 = factorpop();
+            arg1 = factorpop();
+
+            defineSub(arg1, arg2);
+          }
     break;
 
   case 61:
-#line 176 "parser.y"
+#line 232 "parser.y"
     { pushNumber((yyvsp[(1) - (1)].num)); }
     break;
 
   case 63:
-#line 181 "parser.y"
-    { lookup((yyvsp[(1) - (1)].ident));doReference(); }
+#line 237 "parser.y"
+    { lookup((yyvsp[(1) - (1)].ident));
+            Factor arg1;
+            arg1 = factorpop();
+
+            defineLoad(arg1);
+          }
     break;
 
   case 64:
-#line 190 "parser.y"
+#line 251 "parser.y"
     { insert((yyvsp[(1) - (1)].ident), UNDEFINED_VAR); }
     break;
 
   case 65:
-#line 191 "parser.y"
+#line 252 "parser.y"
     { insert((yyvsp[(3) - (3)].ident), UNDEFINED_VAR); }
     break;
 
 
 /* Line 1267 of yacc.c.  */
-#line 1615 "y.tab.c"
+#line 1676 "y.tab.c"
       default: break;
     }
   YY_SYMBOL_PRINT ("-> $$ =", yyr1[yyn], &yyval, &yyloc);
@@ -1825,10 +1886,11 @@ yyreturn:
 }
 
 
-#line 193 "parser.y"
+#line 254 "parser.y"
 
-yyerror(char *s)
+int yyerror(char *s)
 {
   fprintf(stderr, "%s(%d: \'%s\')\n", s, yylineno, yytext);
+  return 0;
 }
 

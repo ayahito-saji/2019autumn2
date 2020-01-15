@@ -1,146 +1,21 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "symbol_table.h"
+#include "llvm.h"
 #include <string.h>
 
-/* LLVM命令名の定義 */
-typedef enum {
-  Alloca,   /* alloca */
-  Store,    /* store  */
-  Load,     /* load   */
-  BrUncond, /* br     */
-  BrCond,   /* brc    */
-  Label,    /* label  */
-  Add,      /* add    */
-  Sub,      /* sub    */
-  Mul,      /* mul    */
-  Div,      /* div    */
-  Icmp,     /* icmp   */
-  Ret,      /* ret    */
-  CommonGlobal /* common_global */ /* 実験4 追加 */
-} LLVMcommand;
-
-/* 比較演算子の種類 */
-typedef enum {
-  EQUAL, /* eq （==）*/
-  NE,    /* ne （!=）*/
-  SGT,   /* sgt （>，符号付き） */
-  SGE,   /* sge （>=，符号付き）*/
-  SLT,   /* slt （<，符号付き） */
-  SLE    /* sle （<=，符号付き）*/
-} Cmptype;
-
-/* 変数もしくは定数の型 */
-typedef struct {
-  Scope type;      /* 変数（のレジスタ）か整数の区別 */
-  char vname[256]; /* 変数の場合の変数名 */
-  int val;         /* 整数の場合はその値，変数の場合は割り当てたレジスタ番号 */
-} Factor;
-
-/* 変数もしくは定数のためのスタック */
-typedef struct {
-  Factor element[100];  /* スタック（最大要素数は100まで） */
-  unsigned int top;     /* スタックのトップの位置         */
-} Factorstack;
-
 Factorstack fstack; /* 整数もしくはレジスタ番号を保持するスタック */
-
-void init_fstack(){ /* fstackの初期化 */
-  fstack.top = 0;
-  return;
-}
-
-typedef struct llvmcode {
-  LLVMcommand command; /* 命令名 */
-  union { /* 命令の引数 */
-    struct { /* common_global */
-      Factor retval;
-    } common_global;
-    struct { /* alloca */
-      Factor retval;
-    } alloca;
-    struct { /* store  */
-      Factor arg1;  Factor arg2;
-    } store;
-    struct { /* load   */
-      Factor arg1;  Factor retval;
-    } load;
-    struct { /* br     */
-      int arg1;
-    } bruncond;
-    struct { /* brc    */
-      Factor arg1;  int arg2;  int arg3;
-    } brcond;
-    struct { /* label  */
-      int l;
-    } label;
-    struct { /* add    */
-      Factor arg1;  Factor arg2;  Factor retval;
-    } add;
-    struct { /* sub    */
-      Factor arg1;  Factor arg2;  Factor retval;
-    } sub;
-    struct { /* icmp   */
-      Cmptype type;  Factor arg1;  Factor arg2;  Factor retval;
-    } icmp;
-    struct { /* ret    */
-      Factor arg1;
-    } ret;
-  } args;
-  /* 次の命令へのポインタ */
-  struct llvmcode *next;
-} LLVMcode;
 
 LLVMcode *codehd = NULL; /* 命令列の先頭のアドレスを保持するポインタ */
 LLVMcode *codetl = NULL; /* 命令列の末尾のアドレスを保持するポインタ */
 unsigned int cntr = 0;
-
-/* LLVMの関数定義 */
-typedef struct fundecl {
-  char fname[256];      /* 関数名                      */
-  unsigned arity;       /* 引数個数                    */
-  Factor args[10];      /* 引数名                      */
-  LLVMcode *codes;      /* 命令列の線形リストへのポインタ */
-  struct fundecl *next; /* 次の関数定義へのポインタ      */
-} Fundecl;
 
 /* 関数定義の線形リストの先頭の要素のアドレスを保持するポインタ */
 Fundecl *declhd = NULL;
 /* 関数定義の線形リストの末尾の要素のアドレスを保持するポインタ */
 Fundecl *decltl = NULL;
 
-/* ラベルを必要とする構文 */
-typedef enum {
-  While,
-  If,
-  For
-} labelSyntaxCommand;
-
-/* ラベルを必要とする構文 */
-typedef struct labelSyntax {
-  labelSyntaxCommand command;
-  union {
-    struct { /* while文のラベル */
-      int label1;
-      LLVMcode *br1;
-      LLVMcode *br2;
-      LLVMcode *br3;
-    } While;
-  } labels;
-} LabelSyntax;
-
-/* ラベルを必要とする構文のスタック */
-typedef struct {
-  LabelSyntax elements[100];
-  unsigned int top;
-} LabelSyntaxStack;
-
 LabelSyntaxStack lstack;
-
-void init_lstack(){ /* lstackの初期化 */
-  lstack.top = 0;
-  return;
-}
 
 void pushLabelSyntax(LabelSyntax x) {
   lstack.top ++;
@@ -160,7 +35,9 @@ LabelSyntax getLabelSyntax() {
 void displayLabelSyntax(LabelSyntax labelSyntax) {
   switch (labelSyntax.command) {
     case While:
-    fprintf(stderr, "While: %d %p %p\n", labelSyntax.labels.While.label1, labelSyntax.labels.While.br1, labelSyntax.labels.While.br2);
+      fprintf(stderr, "While: %d %p %p\n", labelSyntax.labels.While.label1, labelSyntax.labels.While.br1, labelSyntax.labels.While.br2);
+    default:
+      break;
   }
 }
 
@@ -182,7 +59,6 @@ void displayFactor(FILE *fp, Factor factor ){
 }
 
 Factor factorpop() {
-  int i;
   // fprintf(stderr, "FACTOR POP! (index: %d)\n", fstack.top);
 
   Factor tmp;
@@ -255,6 +131,8 @@ void displayLlvmcodes(FILE *fp, LLVMcode *code) {
       displayFactor(fp, (code->args).sub.arg2 );
       fprintf(fp, ", align 4\n");
       break;
+    default:
+      break;
   }
   displayLlvmcodes(fp, code->next);
 }
@@ -311,6 +189,7 @@ LLVMcode *defineGlobalVar( char *var_name ) {
     codetl->next = tmp;
     codetl = tmp;
   }
+  return tmp;
 }
 
 /* LLVM Alloca命令の作成 */
@@ -535,49 +414,6 @@ void pushVariable(char *var_name, Scope type) {
 
 }
 
-/* 変数代入の実装 */
-void doAssign() {
-  // fprintf(stderr, "DEFINE ASSIGNMENT\n");
-
-  Factor arg1, arg2;
-  arg1 = factorpop();
-  arg2 = factorpop();
-
-  defineStore(arg1, arg2);
-}
-
-/* 変数参照の実装 */
-void doReference() {
-  // fprintf(stderr, "DEFINE REFERENCE\n");
-
-  Factor arg1;
-  arg1 = factorpop();
-
-  defineLoad(arg1);
-}
-
-/* 足し算の実行 */
-void doAdd() {
-  // fprintf(stderr, "DEFINE ADD\n");
-
-  Factor arg1, arg2;
-  arg2 = factorpop();
-  arg1 = factorpop();
-
-  defineAdd(arg1, arg2);
-}
-
-/* 引き算の実行 */
-void doSub() {
-  // fprintf(stderr, "DEFINE SUB\n");
-
-  Factor arg1, arg2;
-  arg2 = factorpop();
-  arg1 = factorpop();
-
-  defineSub(arg1, arg2);
-}
-
 /* mainを含めた手続き／関数の実装 */
 void doProcedure(char *proc_name) {
   // fprintf(stderr, "DEFINE PROCEDURE: %s\n", proc_name);
@@ -612,36 +448,4 @@ void doProcedure(char *proc_name) {
     decltl->next = tmp;
     decltl = tmp;
   }
-}
-
-void doWhileInit() {
-  LabelSyntax lsyntax;
-  lsyntax.command = While;
-  lsyntax.labels.While.br1 = defineBr(1);
-  lsyntax.labels.While.label1 = defineLabel()->args.label.l;
-  lsyntax.labels.While.br1->args.bruncond.arg1 = lsyntax.labels.While.label1;
-  lsyntax.labels.While.br2 = NULL;
-  lsyntax.labels.While.br3 = NULL;
-  displayLabelSyntax(lsyntax);
-
-  pushLabelSyntax(lsyntax);
-}
-
-void doWhileCondition() {
-  LabelSyntax lsyntax = popLabelSyntax(lsyntax);
-  lsyntax.labels.While.br2 = defineBrCondition(1, 1);
-  pushLabelSyntax(lsyntax);
-  displayLabelSyntax(lsyntax);
-}
-
-void doWhileStart() {
-  LabelSyntax lsyntax = popLabelSyntax(lsyntax);
-  lsyntax.labels.While.br1->args.brcond.arg2 = defineLabel()->args.label.l;
-  pushLabelSyntax(lsyntax);
-  displayLabelSyntax(lsyntax);
-}
-
-void doWhileEnd() {
-  LabelSyntax lsyntax = getLabelSyntax(lsyntax);
-  displayLabelSyntax(lsyntax);
 }

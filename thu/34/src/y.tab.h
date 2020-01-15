@@ -124,7 +124,7 @@
 
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 typedef union YYSTYPE
-#line 19 "parser.y"
+#line 32 "parser.y"
 {
     int num;
     char ident[MAXLENGTH+1];

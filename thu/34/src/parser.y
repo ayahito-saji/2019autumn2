@@ -14,6 +14,19 @@
 extern int yylineno;
 extern char *yytext;
 
+extern Factorstack fstack; /* 整数もしくはレジスタ番号を保持するスタック */
+
+extern LLVMcode *codehd; /* 命令列の先頭のアドレスを保持するポインタ */
+extern LLVMcode *codetl; /* 命令列の末尾のアドレスを保持するポインタ */
+extern unsigned int cntr;
+
+/* 関数定義の線形リストの先頭の要素のアドレスを保持するポインタ */
+extern Fundecl *declhd;
+/* 関数定義の線形リストの末尾の要素のアドレスを保持するポインタ */
+extern Fundecl *decltl;
+
+extern LabelSyntaxStack lstack;
+
 %}
 
 %union {
@@ -39,7 +52,10 @@ extern char *yytext;
 %%
 
 program
-        : { init_fstack();init_lstack(); } PROGRAM IDENT SEMICOLON outblock PERIOD { outputCode(); }
+        : {
+            fstack.top = 0;
+            lstack.top = 0;
+          } PROGRAM IDENT SEMICOLON outblock PERIOD { outputCode(); }
         ;
 
 outblock
@@ -104,7 +120,12 @@ statement
         ;
 
 assignment_statement
-        : IDENT { lookup($1); } ASSIGN expression { doAssign(); }
+        : IDENT { lookup($1); } ASSIGN expression {
+            Factor arg1, arg2;
+            arg1 = factorpop();
+            arg2 = factorpop();
+            defineStore(arg1, arg2);
+          }
         ;
 
 if_statement
@@ -117,7 +138,30 @@ else_statement
         ;
 
 while_statement
-        : WHILE { doWhileInit(); } condition { doWhileCondition(); } DO { doWhileStart(); }  statement { doWhileEnd(); }
+        : WHILE {
+            LabelSyntax lsyntax;
+            lsyntax.command = While;
+            lsyntax.labels.While.br1 = defineBr(1);
+            lsyntax.labels.While.label1 = defineLabel()->args.label.l;
+            lsyntax.labels.While.br1->args.bruncond.arg1 = lsyntax.labels.While.label1;
+            lsyntax.labels.While.br2 = NULL;
+            lsyntax.labels.While.br3 = NULL;
+            displayLabelSyntax(lsyntax);
+            pushLabelSyntax(lsyntax);
+          } condition {
+            LabelSyntax lsyntax = popLabelSyntax();
+            lsyntax.labels.While.br2 = defineBrCondition(1, 1);
+            pushLabelSyntax(lsyntax);
+            displayLabelSyntax(lsyntax);
+          } DO {
+            LabelSyntax lsyntax = popLabelSyntax();
+            lsyntax.labels.While.br1->args.brcond.arg2 = defineLabel()->args.label.l;
+            pushLabelSyntax(lsyntax);
+            displayLabelSyntax(lsyntax);
+          }  statement {
+            LabelSyntax lsyntax = getLabelSyntax();
+            displayLabelSyntax(lsyntax);
+          }
         ;
 
 for_statement
@@ -153,7 +197,7 @@ condition
         | expression NEQ expression
         | expression LT expression
         | expression LE expression
-        | expression GT expression { doGreater(); }
+        | expression GT expression
         | expression GE expression
         ;
 
@@ -161,8 +205,20 @@ expression
         : term
         | PLUS term
         | MINUS term
-        | expression PLUS term { doAdd(); }
-        | expression MINUS term { doSub(); }
+        | expression PLUS term {
+            Factor arg1, arg2;
+            arg2 = factorpop();
+            arg1 = factorpop();
+
+            defineAdd(arg1, arg2);
+          }
+        | expression MINUS term {
+            Factor arg1, arg2;
+            arg2 = factorpop();
+            arg1 = factorpop();
+
+            defineSub(arg1, arg2);
+          }
         ;
 
 term
@@ -178,7 +234,12 @@ factor
         ;
 
 var_name
-        : IDENT{ lookup($1);doReference(); }
+        : IDENT{ lookup($1);
+            Factor arg1;
+            arg1 = factorpop();
+
+            defineLoad(arg1);
+          }
         ;
 
 arg_list
@@ -191,7 +252,8 @@ id_list
         | id_list COMMA IDENT { insert($3, UNDEFINED_VAR); }
 
 %%
-yyerror(char *s)
+int yyerror(char *s)
 {
   fprintf(stderr, "%s(%d: \'%s\')\n", s, yylineno, yytext);
+  return 0;
 }

@@ -74,6 +74,10 @@ void insert(char *vn, Scope scope)
         fprintf(stderr, "%d. %s (PROC_NAME, %d)\n", i, symbol_table[i].var_name, symbol_table[i].reg);
         break;
 
+      default:
+        break;
+
+
     }
   }
   fprintf(stderr, "\n");
@@ -101,6 +105,10 @@ int lookup(char *vn)
         case PROC_NAME:
           fprintf(stderr, "%d. %s (PROC_NAME, %d)\n", i, symbol_table[i].var_name, symbol_table[i].reg);
           break;
+
+        default:
+          break;
+
       }
       fprintf(stderr, "\n");
       pushVariable(symbol_table[i].var_name, symbol_table[i].scope);
@@ -143,6 +151,8 @@ void delete()
 
       case PROC_NAME:
         fprintf(stderr, "%d. %s (PROC_NAME, %d)\n", i, symbol_table[i].var_name, symbol_table[i].reg);
+        break;
+      default:
         break;
 
     }

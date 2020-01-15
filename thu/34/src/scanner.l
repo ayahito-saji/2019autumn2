@@ -87,7 +87,7 @@ write           return WRITE;
 
 %%
 
-main(int argc, char *argv[]) {
+int main(int argc, char *argv[]) {
     FILE *fp;
     int tok;
 
@@ -130,4 +130,5 @@ main(int argc, char *argv[]) {
         }
     }
     */
+    return 0;
 }
