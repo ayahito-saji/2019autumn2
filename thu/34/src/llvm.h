@@ -106,9 +106,8 @@ typedef struct labelSyntax {
       int label1;
       LLVMcode *br1;
       LLVMcode *br2;
-      LLVMcode *br3;
     } While;
-  } labels;
+  } args;
 } LabelSyntax;
 
 /* ラベルを必要とする構文のスタック */
@@ -140,6 +139,7 @@ LLVMcode *defineSub(Factor arg1, Factor arg2);
 LLVMcode *defineBr(int arg1);
 LLVMcode *defineBrCondition(int arg2, int arg3);
 LLVMcode *defineLabel();
+LLVMcode *defineIcmp(Cmptype type, Factor arg1, Factor arg2);
 
 void doProcedure(char *proc_name);
 

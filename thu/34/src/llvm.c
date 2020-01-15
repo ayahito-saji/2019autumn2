@@ -35,7 +35,7 @@ LabelSyntax getLabelSyntax() {
 void displayLabelSyntax(LabelSyntax labelSyntax) {
   switch (labelSyntax.command) {
     case While:
-      fprintf(stderr, "While: %d %p %p\n", labelSyntax.labels.While.label1, labelSyntax.labels.While.br1, labelSyntax.labels.While.br2);
+      fprintf(stderr, "While: %d %p %p\n", labelSyntax.args.While.label1, labelSyntax.args.While.br1, labelSyntax.args.While.br2);
     default:
       break;
   }
@@ -129,6 +129,29 @@ void displayLlvmcodes(FILE *fp, LLVMcode *code) {
       displayFactor(fp, (code->args).sub.arg1 );
       fprintf(fp, ", ");
       displayFactor(fp, (code->args).sub.arg2 );
+      fprintf(fp, ", align 4\n");
+      break;
+    case Icmp:
+      displayFactor(fp, (code->args).icmp.retval );
+      fprintf(fp, " = icmp ");
+      switch ((code->args).icmp.type) {
+        case EQUAL:
+          fprintf(fp, "eq");break;
+        case NE:
+          fprintf(fp, "ne");break;
+        case SGT:
+          fprintf(fp, "sgt");break;
+        case SGE:
+          fprintf(fp, "sge");break;
+        case SLT:
+          fprintf(fp, "slt");break;
+        case SLE:
+          fprintf(fp, "sle");break;
+      }
+      fprintf(fp, " i32 ");
+      displayFactor(fp, (code->args).icmp.arg1 );
+      fprintf(fp, ", ");
+      displayFactor(fp, (code->args).icmp.arg2 );
       fprintf(fp, ", align 4\n");
       break;
     default:
@@ -329,7 +352,7 @@ LLVMcode *defineSub(Factor arg1, Factor arg2) {
 
 /* LLVM Br命令の作成 */
 LLVMcode *defineBr(int arg1) {
-  fprintf(stderr, "DEFINE BR\n");
+  // fprintf(stderr, "DEFINE BR\n");
 
   LLVMcode *tmp;
   tmp = (LLVMcode *)malloc(sizeof(LLVMcode));
@@ -349,7 +372,7 @@ LLVMcode *defineBr(int arg1) {
 }
 /* LLVM Br Condition命令の作成 */
 LLVMcode *defineBrCondition(int arg2, int arg3) {
-  fprintf(stderr, "DEFINE BR CONDITION\n");
+  // fprintf(stderr, "DEFINE BR CONDITION\n");
 
   LLVMcode *tmp;
   tmp = (LLVMcode *)malloc(sizeof(LLVMcode));
@@ -371,7 +394,7 @@ LLVMcode *defineBrCondition(int arg2, int arg3) {
 }
 /* LLVM Label命令の作成 */
 LLVMcode *defineLabel() {
-  fprintf(stderr, "DEFINE LABEL\n");
+  // fprintf(stderr, "DEFINE LABEL\n");
 
   LLVMcode *tmp;
   tmp = (LLVMcode *)malloc(sizeof(LLVMcode));
@@ -380,6 +403,37 @@ LLVMcode *defineLabel() {
 
   (tmp->args).label.l = cntr;
   cntr ++;
+
+  if (codetl == NULL){
+    codetl = tmp;
+  } else {
+    codetl->next = tmp;
+    codetl = tmp;
+  }
+
+  return tmp;
+}
+
+/* LLVM Icmp命令の作成 */
+LLVMcode *defineIcmp(Cmptype type, Factor arg1, Factor arg2) {
+  // fprintf(stderr, "DEFINE SUB\n");
+
+  LLVMcode *tmp;
+  tmp = (LLVMcode *)malloc(sizeof(LLVMcode));
+  tmp->next = NULL;
+  tmp->command = Icmp;
+
+  Factor retval;
+  retval.type = LOCAL_VAR;
+  retval.val = cntr;
+  cntr++;
+
+  (tmp->args).icmp.type = type;
+  (tmp->args).icmp.arg1 = arg1;
+  (tmp->args).icmp.arg2 = arg2;
+  (tmp->args).icmp.retval = retval;
+
+  factorpush(retval);
 
   if (codetl == NULL){
     codetl = tmp;

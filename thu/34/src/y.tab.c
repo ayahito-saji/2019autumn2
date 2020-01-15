@@ -529,15 +529,15 @@ static const yytype_int8 yyrhs[] =
 };
 
 /* YYRLINE[YYN] -- source line where rule number YYN was defined.  */
-static const yytype_uint8 yyrline[] =
+static const yytype_uint16 yyrline[] =
 {
        0,    55,    55,    55,    62,    62,    65,    67,    71,    72,
       76,    80,    81,    85,    86,    90,    94,    98,   102,   106,
      107,   111,   112,   113,   114,   115,   116,   117,   118,   119,
-     123,   123,   132,   136,   137,   141,   151,   156,   141,   168,
-     172,   176,   180,   184,   188,   191,   196,   197,   198,   199,
-     200,   201,   205,   206,   207,   208,   215,   225,   226,   227,
-     231,   232,   233,   237,   251,   252
+     123,   123,   132,   136,   137,   141,   151,   156,   141,   170,
+     174,   178,   182,   186,   190,   193,   198,   204,   210,   216,
+     222,   228,   237,   238,   239,   240,   247,   257,   258,   259,
+     263,   264,   265,   269,   283,   284
 };
 #endif
 
@@ -1568,13 +1568,13 @@ yyreduce:
   case 35:
 #line 141 "parser.y"
     {
+            // BR1 LABEL1 while ~~~ BR2 do LABEL2 ~~~~~ BR3 LABEL3
             LabelSyntax lsyntax;
             lsyntax.command = While;
-            lsyntax.labels.While.br1 = defineBr(1);
-            lsyntax.labels.While.label1 = defineLabel()->args.label.l;
-            lsyntax.labels.While.br1->args.bruncond.arg1 = lsyntax.labels.While.label1;
-            lsyntax.labels.While.br2 = NULL;
-            lsyntax.labels.While.br3 = NULL;
+            lsyntax.args.While.br1 = defineBr(1); // LABEL1へのジャンプ命令を定義して，LLVM命令の場所を記憶
+            lsyntax.args.While.label1 = defineLabel()->args.label.l; // LABEL1を定義して，LABEL1のレジスタ番号を代入
+            lsyntax.args.While.br1->args.bruncond.arg1 = lsyntax.args.While.label1; // BR1にLABEL1のレジスタ番号を代入
+            lsyntax.args.While.br2 = NULL;
             displayLabelSyntax(lsyntax);
             pushLabelSyntax(lsyntax);
           }
@@ -1584,7 +1584,7 @@ yyreduce:
 #line 151 "parser.y"
     {
             LabelSyntax lsyntax = popLabelSyntax();
-            lsyntax.labels.While.br2 = defineBrCondition(1, 1);
+            lsyntax.args.While.br2 = defineBrCondition(1, 1); // LABEL2またはLABEL3へのジャンプ命令を定義して，LLVM命令の場所を記憶
             pushLabelSyntax(lsyntax);
             displayLabelSyntax(lsyntax);
           }
@@ -1594,7 +1594,7 @@ yyreduce:
 #line 156 "parser.y"
     {
             LabelSyntax lsyntax = popLabelSyntax();
-            lsyntax.labels.While.br1->args.brcond.arg2 = defineLabel()->args.label.l;
+            lsyntax.args.While.br2->args.brcond.arg2 = defineLabel()->args.label.l; // LABEL2を定義して，BR2のジャンプ先1にLABEL2のレジスタ番号を代入
             pushLabelSyntax(lsyntax);
             displayLabelSyntax(lsyntax);
           }
@@ -1603,28 +1603,90 @@ yyreduce:
   case 38:
 #line 161 "parser.y"
     {
-            LabelSyntax lsyntax = getLabelSyntax();
+            LabelSyntax lsyntax = popLabelSyntax();
+            defineBr(lsyntax.args.While.label1); // LABEL1へジャンプするBR命令を定義
+            lsyntax.args.While.br2->args.brcond.arg3 = defineLabel()->args.label.l; // LABEL2を定義して，BR2のジャンプ先1にLABEL2のレジスタ番号を代入
             displayLabelSyntax(lsyntax);
           }
     break;
 
   case 41:
-#line 176 "parser.y"
+#line 178 "parser.y"
     { lookup((yyvsp[(1) - (1)].ident)); }
     break;
 
   case 43:
-#line 184 "parser.y"
+#line 186 "parser.y"
     { lookup((yyvsp[(3) - (4)].ident)); }
     break;
 
   case 44:
-#line 188 "parser.y"
+#line 190 "parser.y"
     { lookup((yyvsp[(3) - (4)].ident)); }
     break;
 
+  case 46:
+#line 198 "parser.y"
+    {
+            Factor arg1, arg2;
+            arg2 = factorpop();
+            arg1 = factorpop();
+            defineIcmp(EQUAL, arg1, arg2);
+          }
+    break;
+
+  case 47:
+#line 204 "parser.y"
+    {
+            Factor arg1, arg2;
+            arg2 = factorpop();
+            arg1 = factorpop();
+            defineIcmp(NE, arg1, arg2);
+          }
+    break;
+
+  case 48:
+#line 210 "parser.y"
+    {
+            Factor arg1, arg2;
+            arg2 = factorpop();
+            arg1 = factorpop();
+            defineIcmp(SLE, arg1, arg2);
+          }
+    break;
+
+  case 49:
+#line 216 "parser.y"
+    {
+            Factor arg1, arg2;
+            arg2 = factorpop();
+            arg1 = factorpop();
+            defineIcmp(SLE, arg1, arg2);
+          }
+    break;
+
+  case 50:
+#line 222 "parser.y"
+    {
+            Factor arg1, arg2;
+            arg2 = factorpop();
+            arg1 = factorpop();
+            defineIcmp(SGT, arg1, arg2);
+          }
+    break;
+
+  case 51:
+#line 228 "parser.y"
+    {
+            Factor arg1, arg2;
+            arg2 = factorpop();
+            arg1 = factorpop();
+            defineIcmp(SGE, arg1, arg2);
+          }
+    break;
+
   case 55:
-#line 208 "parser.y"
+#line 240 "parser.y"
     {
             Factor arg1, arg2;
             arg2 = factorpop();
@@ -1635,7 +1697,7 @@ yyreduce:
     break;
 
   case 56:
-#line 215 "parser.y"
+#line 247 "parser.y"
     {
             Factor arg1, arg2;
             arg2 = factorpop();
@@ -1646,12 +1708,12 @@ yyreduce:
     break;
 
   case 61:
-#line 232 "parser.y"
+#line 264 "parser.y"
     { pushNumber((yyvsp[(1) - (1)].num)); }
     break;
 
   case 63:
-#line 237 "parser.y"
+#line 269 "parser.y"
     { lookup((yyvsp[(1) - (1)].ident));
             Factor arg1;
             arg1 = factorpop();
@@ -1661,18 +1723,18 @@ yyreduce:
     break;
 
   case 64:
-#line 251 "parser.y"
+#line 283 "parser.y"
     { insert((yyvsp[(1) - (1)].ident), UNDEFINED_VAR); }
     break;
 
   case 65:
-#line 252 "parser.y"
+#line 284 "parser.y"
     { insert((yyvsp[(3) - (3)].ident), UNDEFINED_VAR); }
     break;
 
 
 /* Line 1267 of yacc.c.  */
-#line 1676 "y.tab.c"
+#line 1738 "y.tab.c"
       default: break;
     }
   YY_SYMBOL_PRINT ("-> $$ =", yyr1[yyn], &yyval, &yyloc);
@@ -1886,7 +1948,7 @@ yyreturn:
 }
 
 
-#line 254 "parser.y"
+#line 286 "parser.y"
 
 int yyerror(char *s)
 {

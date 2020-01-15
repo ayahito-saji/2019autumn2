@@ -139,27 +139,29 @@ else_statement
 
 while_statement
         : WHILE {
+            // BR1 LABEL1 while ~~~ BR2 do LABEL2 ~~~~~ BR3 LABEL3
             LabelSyntax lsyntax;
             lsyntax.command = While;
-            lsyntax.labels.While.br1 = defineBr(1);
-            lsyntax.labels.While.label1 = defineLabel()->args.label.l;
-            lsyntax.labels.While.br1->args.bruncond.arg1 = lsyntax.labels.While.label1;
-            lsyntax.labels.While.br2 = NULL;
-            lsyntax.labels.While.br3 = NULL;
+            lsyntax.args.While.br1 = defineBr(1); // LABEL1へのジャンプ命令を定義して，LLVM命令の場所を記憶
+            lsyntax.args.While.label1 = defineLabel()->args.label.l; // LABEL1を定義して，LABEL1のレジスタ番号を代入
+            lsyntax.args.While.br1->args.bruncond.arg1 = lsyntax.args.While.label1; // BR1にLABEL1のレジスタ番号を代入
+            lsyntax.args.While.br2 = NULL;
             displayLabelSyntax(lsyntax);
             pushLabelSyntax(lsyntax);
           } condition {
             LabelSyntax lsyntax = popLabelSyntax();
-            lsyntax.labels.While.br2 = defineBrCondition(1, 1);
+            lsyntax.args.While.br2 = defineBrCondition(1, 1); // LABEL2またはLABEL3へのジャンプ命令を定義して，LLVM命令の場所を記憶
             pushLabelSyntax(lsyntax);
             displayLabelSyntax(lsyntax);
           } DO {
             LabelSyntax lsyntax = popLabelSyntax();
-            lsyntax.labels.While.br1->args.brcond.arg2 = defineLabel()->args.label.l;
+            lsyntax.args.While.br2->args.brcond.arg2 = defineLabel()->args.label.l; // LABEL2を定義して，BR2のジャンプ先1にLABEL2のレジスタ番号を代入
             pushLabelSyntax(lsyntax);
             displayLabelSyntax(lsyntax);
           }  statement {
-            LabelSyntax lsyntax = getLabelSyntax();
+            LabelSyntax lsyntax = popLabelSyntax();
+            defineBr(lsyntax.args.While.label1); // LABEL1へジャンプするBR命令を定義
+            lsyntax.args.While.br2->args.brcond.arg3 = defineLabel()->args.label.l; // LABEL2を定義して，BR2のジャンプ先1にLABEL2のレジスタ番号を代入
             displayLabelSyntax(lsyntax);
           }
         ;
@@ -193,12 +195,42 @@ null_statement
         ;
 
 condition
-        : expression EQ expression
-        | expression NEQ expression
-        | expression LT expression
-        | expression LE expression
-        | expression GT expression
-        | expression GE expression
+        : expression EQ expression {
+            Factor arg1, arg2;
+            arg2 = factorpop();
+            arg1 = factorpop();
+            defineIcmp(EQUAL, arg1, arg2);
+          }
+        | expression NEQ expression {
+            Factor arg1, arg2;
+            arg2 = factorpop();
+            arg1 = factorpop();
+            defineIcmp(NE, arg1, arg2);
+          }
+        | expression LT expression {
+            Factor arg1, arg2;
+            arg2 = factorpop();
+            arg1 = factorpop();
+            defineIcmp(SLE, arg1, arg2);
+          }
+        | expression LE expression {
+            Factor arg1, arg2;
+            arg2 = factorpop();
+            arg1 = factorpop();
+            defineIcmp(SLE, arg1, arg2);
+          }
+        | expression GT expression {
+            Factor arg1, arg2;
+            arg2 = factorpop();
+            arg1 = factorpop();
+            defineIcmp(SGT, arg1, arg2);
+          }
+        | expression GE expression {
+            Factor arg1, arg2;
+            arg2 = factorpop();
+            arg1 = factorpop();
+            defineIcmp(SGE, arg1, arg2);
+          }
         ;
 
 expression
