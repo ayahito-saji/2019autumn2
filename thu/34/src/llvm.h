@@ -71,6 +71,12 @@ typedef struct llvmcode {
     struct { /* sub    */
       Factor arg1;  Factor arg2;  Factor retval;
     } sub;
+    struct { /* mul    */
+      Factor arg1;  Factor arg2;  Factor retval;
+    } mul;
+    struct { /* div    */
+      Factor arg1;  Factor arg2;  Factor retval;
+    } div;
     struct { /* icmp   */
       Cmptype type;  Factor arg1;  Factor arg2;  Factor retval;
     } icmp;
@@ -107,6 +113,11 @@ typedef struct labelSyntax {
       LLVMcode *br1;
       LLVMcode *br2;
     } While;
+    struct {
+      LLVMcode *br1;
+      LLVMcode *br2;
+      LLVMcode *br3;
+    } If;
   } args;
 } LabelSyntax;
 
@@ -136,6 +147,8 @@ LLVMcode *defineStore(Factor arg1, Factor arg2);
 LLVMcode *defineLoad(Factor arg1);
 LLVMcode *defineAdd(Factor arg1, Factor arg2);
 LLVMcode *defineSub(Factor arg1, Factor arg2);
+LLVMcode *defineMul(Factor arg1, Factor arg2);
+LLVMcode *defineDiv(Factor arg1, Factor arg2);
 LLVMcode *defineBr(int arg1);
 LLVMcode *defineBrCondition(int arg2, int arg3);
 LLVMcode *defineLabel();

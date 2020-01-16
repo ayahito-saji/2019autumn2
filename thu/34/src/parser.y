@@ -129,7 +129,27 @@ assignment_statement
         ;
 
 if_statement
-        : IF condition THEN statement else_statement
+        : IF condition {
+            // if ~~~ BR1 then LABEL2 ~~~~~ BR2 else LABEL3 ~~~~~~ BR3 LABEL4
+            LabelSyntax lsyntax;
+            lsyntax.command = If;
+            lsyntax.args.If.br1 = defineBrCondition(1, 1);
+            lsyntax.args.If.br2 = NULL;
+            lsyntax.args.If.br3 = NULL;
+            pushLabelSyntax(lsyntax);
+            displayLabelSyntax(lsyntax);
+          } THEN {
+            LabelSyntax lsyntax = popLabelSyntax();
+            lsyntax.args.If.br1->args.brcond.arg2 = defineLabel()->args.label.l;
+            pushLabelSyntax(lsyntax);
+          } statement {
+            LabelSyntax lsyntax = popLabelSyntax();
+            lsyntax.args.If.br1->args.brcond.arg3 = defineLabel()->args.label.l;
+            pushLabelSyntax(lsyntax);
+          } else_statement {
+            LabelSyntax lsyntax = popLabelSyntax();
+            defineLabel();
+          }
         ;
 
 else_statement
@@ -146,23 +166,23 @@ while_statement
             lsyntax.args.While.label1 = defineLabel()->args.label.l; // LABEL1を定義して，LABEL1のレジスタ番号を代入
             lsyntax.args.While.br1->args.bruncond.arg1 = lsyntax.args.While.label1; // BR1にLABEL1のレジスタ番号を代入
             lsyntax.args.While.br2 = NULL;
-            displayLabelSyntax(lsyntax);
+            // displayLabelSyntax(lsyntax);
             pushLabelSyntax(lsyntax);
           } condition {
             LabelSyntax lsyntax = popLabelSyntax();
             lsyntax.args.While.br2 = defineBrCondition(1, 1); // LABEL2またはLABEL3へのジャンプ命令を定義して，LLVM命令の場所を記憶
             pushLabelSyntax(lsyntax);
-            displayLabelSyntax(lsyntax);
+            // displayLabelSyntax(lsyntax);
           } DO {
             LabelSyntax lsyntax = popLabelSyntax();
             lsyntax.args.While.br2->args.brcond.arg2 = defineLabel()->args.label.l; // LABEL2を定義して，BR2のジャンプ先1にLABEL2のレジスタ番号を代入
             pushLabelSyntax(lsyntax);
-            displayLabelSyntax(lsyntax);
+            // displayLabelSyntax(lsyntax);
           }  statement {
             LabelSyntax lsyntax = popLabelSyntax();
             defineBr(lsyntax.args.While.label1); // LABEL1へジャンプするBR命令を定義
             lsyntax.args.While.br2->args.brcond.arg3 = defineLabel()->args.label.l; // LABEL2を定義して，BR2のジャンプ先1にLABEL2のレジスタ番号を代入
-            displayLabelSyntax(lsyntax);
+            // displayLabelSyntax(lsyntax);
           }
         ;
 
@@ -255,8 +275,20 @@ expression
 
 term
         : factor
-        | term MULT factor
-        | term DIV factor
+        | term MULT factor {
+            Factor arg1, arg2;
+            arg2 = factorpop();
+            arg1 = factorpop();
+
+            defineMul(arg1, arg2);
+          }
+        | term DIV factor {
+            Factor arg1, arg2;
+            arg2 = factorpop();
+            arg1 = factorpop();
+
+            defineDiv(arg1, arg2);
+          }
         ;
 
 factor

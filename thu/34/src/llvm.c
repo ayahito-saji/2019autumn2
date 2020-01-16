@@ -108,7 +108,7 @@ void displayLlvmcodes(FILE *fp, LLVMcode *code) {
       fprintf(fp, "br label %%%d\n\n", (code->args).bruncond.arg1);
       break;
     case BrCond:
-      fprintf(fp, "br label i1 %%");
+      fprintf(fp, "br label i1 ");
       displayFactor(fp, (code->args).brcond.arg1 );
       fprintf(fp, ", label %%%d, label %%%d\n\n", (code->args).brcond.arg2, (code->args).brcond.arg3);
       break;
@@ -129,6 +129,22 @@ void displayLlvmcodes(FILE *fp, LLVMcode *code) {
       displayFactor(fp, (code->args).sub.arg1 );
       fprintf(fp, ", ");
       displayFactor(fp, (code->args).sub.arg2 );
+      fprintf(fp, ", align 4\n");
+      break;
+    case Mul:
+      displayFactor(fp, (code->args).mul.retval );
+      fprintf(fp, " = mul nsw i32 ");
+      displayFactor(fp, (code->args).mul.arg1 );
+      fprintf(fp, ", ");
+      displayFactor(fp, (code->args).mul.arg2 );
+      fprintf(fp, ", align 4\n");
+      break;
+    case Div:
+      displayFactor(fp, (code->args).div.retval );
+      fprintf(fp, " = sdiv nsw i32 ");
+      displayFactor(fp, (code->args).div.arg1 );
+      fprintf(fp, ", ");
+      displayFactor(fp, (code->args).div.arg2 );
       fprintf(fp, ", align 4\n");
       break;
     case Icmp:
@@ -337,6 +353,66 @@ LLVMcode *defineSub(Factor arg1, Factor arg2) {
   (tmp->args).sub.arg1 = arg1;
   (tmp->args).sub.arg2 = arg2;
   (tmp->args).sub.retval = retval;
+
+  factorpush(retval);
+
+  if (codetl == NULL){
+    codetl = tmp;
+  } else {
+    codetl->next = tmp;
+    codetl = tmp;
+  }
+
+  return tmp;
+}
+
+/* LLVM Mul命令の作成 */
+LLVMcode *defineMul(Factor arg1, Factor arg2) {
+  // fprintf(stderr, "DEFINE SUB\n");
+
+  LLVMcode *tmp;
+  tmp = (LLVMcode *)malloc(sizeof(LLVMcode));
+  tmp->next = NULL;
+  tmp->command = Mul;
+
+  Factor retval;
+  retval.type = LOCAL_VAR;
+  retval.val = cntr;
+  cntr++;
+
+  (tmp->args).mul.arg1 = arg1;
+  (tmp->args).mul.arg2 = arg2;
+  (tmp->args).mul.retval = retval;
+
+  factorpush(retval);
+
+  if (codetl == NULL){
+    codetl = tmp;
+  } else {
+    codetl->next = tmp;
+    codetl = tmp;
+  }
+
+  return tmp;
+}
+
+/* LLVM Div命令の作成 */
+LLVMcode *defineDiv(Factor arg1, Factor arg2) {
+  // fprintf(stderr, "DEFINE SUB\n");
+
+  LLVMcode *tmp;
+  tmp = (LLVMcode *)malloc(sizeof(LLVMcode));
+  tmp->next = NULL;
+  tmp->command = Div;
+
+  Factor retval;
+  retval.type = LOCAL_VAR;
+  retval.val = cntr;
+  cntr++;
+
+  (tmp->args).div.arg1 = arg1;
+  (tmp->args).div.arg2 = arg2;
+  (tmp->args).div.retval = retval;
 
   factorpush(retval);
 
