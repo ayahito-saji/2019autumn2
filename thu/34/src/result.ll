@@ -1,5 +1,6 @@
   @n = common global i32 0, align 4
   @x = common global i32 0, align 4
+  @i = common global i32 0, align 4
 define void @prime #0() {
   %1 = alloca i32, align 4
   %2 = load i32, i32* @x, align 4
@@ -33,21 +34,23 @@ define void @prime #0() {
 define i32 @main #0() {
   %1 = alloca i32, align 4
   store i32 0, i32* %1, align 4
+  store i32 @i, i32* 2, align 4
   br label %2
 
   ; <label>:2:
-  %3 = load i32, i32* @n, align 4
-  %4 = icmp sle i32 1, %3, align 4
-  br label i1 %4, label %5, label %9
+  %3 = load i32, i32* @i, align 4
+  %4 = load i32, i32* @n, align 4
+  %5 = icmp sle i32 %3, %4, align 4
+  br label i1 %5, label %6, label %10
 
-  ; <label>:5:
-  %6 = load i32, i32* @n, align 4
-  store i32 %6, i32* @x, align 4
-  %7 = load i32, i32* @n, align 4
-  %8 = sub nsw i32 %7, 1, align 4
-  store i32 %8, i32* @n, align 4
+  ; <label>:6:
+  %7 = load i32, i32* @i, align 4
+  store i32 %7, i32* @x, align 4
+  %8 = load i32, i32* @i, align 4
+  %9 = add nsw i32 %8, 1, align 4
+  store i32 @i, i32* %9, align 4
   br label %2
 
-  ; <label>:9:
+  ; <label>:10:
   ret %1
 }
