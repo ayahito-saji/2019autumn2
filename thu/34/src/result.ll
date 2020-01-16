@@ -1,6 +1,6 @@
   @n = common global i32 0, align 4
   @x = common global i32 0, align 4
-define i32 @prime #0() {
+define void @prime #0() {
   %1 = alloca i32, align 4
   %2 = load i32, i32* @x, align 4
   %3 = sdiv nsw i32 %2, 2, align 4
@@ -49,4 +49,5 @@ define i32 @main #0() {
   br label %2
 
   ; <label>:9:
+  ret %1
 }

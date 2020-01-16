@@ -59,7 +59,7 @@ program
         ;
 
 outblock
-        : var_decl_part subprog_decl_part { doMainProcedure(); } statement { delete(); }
+        : var_decl_part subprog_decl_part { doMainProcedure(); } statement { defineRet();delete(); }
         ;
 
 var_decl_part
@@ -366,8 +366,6 @@ var_name
         : IDENT{ lookup($1);
             Factor arg1;
             arg1 = factorpop();
-
-            displayFactor(stderr, arg1);
 
             if (arg1.type == GLOBAL_VAR) defineLoad(arg1);
             else factorpush(arg1);

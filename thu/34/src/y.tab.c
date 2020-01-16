@@ -402,7 +402,7 @@ typedef struct {
 } YYSTACKDATA;
 /* variables for the parser stack */
 static YYSTACKDATA yystack;
-#line 387 "parser.y"
+#line 385 "parser.y"
 int yyerror(char *s)
 {
   fprintf(stderr, "%s(%d: \'%s\')\n", s, yylineno, yytext);
@@ -631,7 +631,7 @@ case 3:
 break;
 case 4:
 #line 62 "parser.y"
-	{ delete(); }
+	{ defineRet();delete(); }
 break;
 case 15:
 #line 94 "parser.y"
@@ -932,21 +932,19 @@ case 68:
             Factor arg1;
             arg1 = factorpop();
 
-            displayFactor(stderr, arg1);
-
             if (arg1.type == GLOBAL_VAR) defineLoad(arg1);
             else factorpush(arg1);
           }
 break;
 case 71:
-#line 383 "parser.y"
+#line 381 "parser.y"
 	{ insert(yystack.l_mark[0].ident, UNDEFINED_VAR); }
 break;
 case 72:
-#line 384 "parser.y"
+#line 382 "parser.y"
 	{ insert(yystack.l_mark[0].ident, UNDEFINED_VAR); }
 break;
-#line 949 "y.tab.c"
+#line 947 "y.tab.c"
     }
     yystack.s_mark -= yym;
     yystate = *yystack.s_mark;

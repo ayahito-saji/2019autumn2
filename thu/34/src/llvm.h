@@ -28,6 +28,12 @@ typedef enum {
   SLE    /* sle （<=，符号付き）*/
 } Cmptype;
 
+/* 返り値の型 */
+typedef enum {
+  VOID,
+  INT32
+} ReturnType;
+
 /* 変数もしくは定数の型 */
 typedef struct {
   Scope type;      /* 変数（のレジスタ）か整数の区別 */
@@ -95,6 +101,7 @@ typedef struct fundecl {
   Factor args[10];      /* 引数名                      */
   LLVMcode *codes;      /* 命令列の線形リストへのポインタ */
   struct fundecl *next; /* 次の関数定義へのポインタ      */
+  ReturnType rettype;
 } Fundecl;
 
 /* ラベルを必要とする構文 */
@@ -159,6 +166,7 @@ LLVMcode *defineBr(int arg1);
 LLVMcode *defineBrCondition(int arg2, int arg3);
 LLVMcode *defineLabel();
 LLVMcode *defineIcmp(Cmptype type, Factor arg1, Factor arg2);
+LLVMcode *defineRet();
 
 void doProcedure(char *proc_name);
 void doMainProcedure();

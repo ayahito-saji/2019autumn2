@@ -170,6 +170,11 @@ void displayLlvmcodes(FILE *fp, LLVMcode *code) {
       displayFactor(fp, (code->args).icmp.arg2 );
       fprintf(fp, ", align 4\n");
       break;
+    case Ret:
+      fprintf(fp, "ret ");
+      displayFactor(fp, (code->args).ret.arg1 );
+      fprintf(fp, "\n");
+      break;
     default:
       break;
   }
@@ -179,7 +184,15 @@ void displayLlvmcodes(FILE *fp, LLVMcode *code) {
 /* 手続きを表示する */
 void displayLlvmfundecl(FILE *fp, Fundecl *decl ) {
   if (decl == NULL) return;
-  fprintf(fp, "define i32 @%s #0() {\n", decl->fname);
+  fprintf(fp, "define ");
+  
+  switch (decl->rettype) {
+    case VOID:
+      fprintf(fp, "void");break;
+    case INT32:
+      fprintf(fp, "i32");break;
+  }
+  fprintf(fp, " @%s #0() {\n", decl->fname);
   displayLlvmcodes(fp, decl->codes);
   fprintf(fp, "}\n");
   if(decl->next != NULL) {
@@ -472,6 +485,24 @@ LLVMcode *defineIcmp(Cmptype type, Factor arg1, Factor arg2) {
   return tmp;
 }
 
+LLVMcode *defineRet() {
+
+  LLVMcode *tmp;
+  tmp = (LLVMcode *)malloc(sizeof(LLVMcode));
+  tmp->next = NULL;
+  tmp->command = Ret;
+
+  Factor arg1;
+  arg1.type = LOCAL_VAR;
+  arg1.val = 1;
+
+  (tmp->args).ret.arg1 = arg1;
+
+  pushLLVMcode (tmp);
+
+  return NULL;
+}
+
 /* 数字をFactorとして追加 */
 void pushNumber(int number) {
   // fprintf(stderr, "PUSH NUMBER %d\n", number);
@@ -505,6 +536,7 @@ void doProcedure(char *proc_name) {
   Fundecl *tmp;
   tmp = (Fundecl *)malloc(sizeof(Fundecl));
   strcpy(tmp->fname, proc_name);
+  tmp->rettype = VOID;
 
   if (decltl == NULL){
     if (declhd == NULL) {
@@ -527,6 +559,7 @@ void doMainProcedure() {
   Fundecl *tmp;
   tmp = (Fundecl *)malloc(sizeof(Fundecl));
   strcpy(tmp->fname, "main");
+  tmp->rettype = INT32;
 
   if (decltl == NULL){
     if (declhd == NULL) {

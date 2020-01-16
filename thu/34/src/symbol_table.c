@@ -31,7 +31,7 @@ void insert(char *vn, Scope scope)
   strcpy(var_name, vn);
 
   // show action
-  fprintf(stderr, "variable \'%s\' inserted!!(%d)\n", var_name, yylineno);
+  // fprintf(stderr, "variable \'%s\' inserted!!(%d)\n", var_name, yylineno);
   // fprintf(stderr, "--------------------------\n");
 
   // assignment to table
@@ -60,6 +60,7 @@ void insert(char *vn, Scope scope)
   symbol_table_length++;
 
   // show symbol table
+  /*
   for (i=0;i<symbol_table_length;i++)
   {
     switch (symbol_table[i].scope)
@@ -83,17 +84,19 @@ void insert(char *vn, Scope scope)
     }
   }
   fprintf(stderr, "\n");
+  */
 
 }
 
 int lookup(char *vn)
 {
   int i;
-  fprintf(stderr, "variable \'%s\' looked up!!(%d)\n", vn, yylineno);
+  // fprintf(stderr, "variable \'%s\' looked up!!(%d)\n", vn, yylineno);
   for (i=symbol_table_length-1;i>=0;i--)
   {
     if (strcmp(vn, symbol_table[i].var_name) == 0)
     {
+      /*
       switch (symbol_table[i].scope)
       {
         case GLOBAL_VAR:
@@ -113,10 +116,13 @@ int lookup(char *vn)
 
       }
       fprintf(stderr, "\n");
+      */
       pushVariable(symbol_table[i].var_name, symbol_table[i].scope, symbol_table[i].reg);
       return i;
     }
   }
+  fprintf(stderr, "Reference Error: '%s' is undefined\n", vn);
+  exit(1);
   return -1;
 }
 
@@ -124,7 +130,7 @@ void delete()
 {
   int i;
   SymbolTable target_symbol;
-  fprintf(stderr, "deleted!!\n");
+  // fprintf(stderr, "deleted!!\n");
   // fprintf(stderr, "--------------------------\n");
   while (1) {
     target_symbol = symbol_table[symbol_table_length-1];
@@ -139,6 +145,7 @@ void delete()
   is_local_variable = 0;
 
   // show symbol table
+  /*
   for (i=0;i<symbol_table_length;i++)
   {
     switch (symbol_table[i].scope)
@@ -160,6 +167,7 @@ void delete()
     }
   }
   fprintf(stderr, "\n");
+  */
 
 
 }
