@@ -19,7 +19,8 @@ typedef struct {
 SymbolTable symbol_table[1024];
 int symbol_table_length = 0;
 int is_local_variable = 0;
-int reg_cntr = 1;
+
+extern int cntr;
 
 void insert(char *vn, Scope scope)
 {
@@ -39,8 +40,9 @@ void insert(char *vn, Scope scope)
   if (scope == UNDEFINED_VAR) {
     if (is_local_variable == 1) {
       symbol_table[symbol_table_length].scope = LOCAL_VAR;
-      symbol_table[symbol_table_length].reg = reg_cntr;
-      reg_cntr ++;
+      symbol_table[symbol_table_length].reg = cntr;
+      defineAlloca(cntr);
+      cntr ++;
     } else {
       symbol_table[symbol_table_length].scope = GLOBAL_VAR;
       symbol_table[symbol_table_length].reg = 0;
@@ -48,12 +50,12 @@ void insert(char *vn, Scope scope)
     }
   } else {
     symbol_table[symbol_table_length].scope = scope;
+    symbol_table[symbol_table_length].reg = 0;
   }
 
   if (scope == PROC_NAME) {
     doProcedure(var_name);
     is_local_variable = 1;
-    reg_cntr = 2;
   }
   symbol_table_length++;
 
@@ -111,7 +113,7 @@ int lookup(char *vn)
 
       }
       fprintf(stderr, "\n");
-      pushVariable(symbol_table[i].var_name, symbol_table[i].scope);
+      pushVariable(symbol_table[i].var_name, symbol_table[i].scope, symbol_table[i].reg);
       return i;
     }
   }

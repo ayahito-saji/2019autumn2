@@ -205,6 +205,17 @@ void outputCode () {
   fclose(outputfile);
 }
 
+void pushLLVMcode (LLVMcode *code) {
+  if (codetl == NULL){
+    if (decltl != NULL && decltl->codes == NULL) {
+      decltl->codes = code;
+    }
+  } else {
+    codetl->next = code;
+  }
+  codetl = code;
+}
+
 /* LLVM Common Global命令の作成 */
 LLVMcode *defineGlobalVar( char *var_name ) {
   // fprintf(stderr, "DEFINE GLOBAL VARIABLE: %s\n", var_name);
@@ -219,15 +230,10 @@ LLVMcode *defineGlobalVar( char *var_name ) {
   tmp->command = CommonGlobal;
   (tmp->args).common_global.retval = retval;
 
-  if (codetl == NULL){
-    if (codehd == NULL) {
-      codehd = tmp;
-    }
-    codetl = tmp;
-  } else {
-    codetl->next = tmp;
-    codetl = tmp;
+  if (codehd == NULL) {
+    codehd = tmp;
   }
+  pushLLVMcode (tmp);
   return tmp;
 }
 
@@ -245,12 +251,7 @@ LLVMcode *defineAlloca(int reg) {
   retval.val = reg;
   (tmp->args).alloca.retval = retval;
 
-  if (codetl == NULL){
-    codetl = tmp;
-  } else {
-    codetl->next = tmp;
-    codetl = tmp;
-  }
+  pushLLVMcode (tmp);
 
   return tmp;
 }
@@ -267,12 +268,7 @@ LLVMcode *defineStore(Factor arg1, Factor arg2) {
   (tmp->args).store.arg1 = arg1;
   (tmp->args).store.arg2 = arg2;
 
-  if (codetl == NULL){
-    codetl = tmp;
-  } else {
-    codetl->next = tmp;
-    codetl = tmp;
-  }
+  pushLLVMcode (tmp);
 
   return tmp;
 }
@@ -296,12 +292,7 @@ LLVMcode *defineLoad(Factor arg1) {
 
   factorpush(retval);
 
-  if (codetl == NULL){
-    codetl = tmp;
-  } else {
-    codetl->next = tmp;
-    codetl = tmp;
-  }
+  pushLLVMcode (tmp);
 
   return tmp;
 }
@@ -326,12 +317,7 @@ LLVMcode *defineAdd(Factor arg1, Factor arg2) {
 
   factorpush(retval);
 
-  if (codetl == NULL){
-    codetl = tmp;
-  } else {
-    codetl->next = tmp;
-    codetl = tmp;
-  }
+  pushLLVMcode (tmp);
 
   return tmp;
 }
@@ -356,12 +342,7 @@ LLVMcode *defineSub(Factor arg1, Factor arg2) {
 
   factorpush(retval);
 
-  if (codetl == NULL){
-    codetl = tmp;
-  } else {
-    codetl->next = tmp;
-    codetl = tmp;
-  }
+  pushLLVMcode (tmp);
 
   return tmp;
 }
@@ -386,12 +367,7 @@ LLVMcode *defineMul(Factor arg1, Factor arg2) {
 
   factorpush(retval);
 
-  if (codetl == NULL){
-    codetl = tmp;
-  } else {
-    codetl->next = tmp;
-    codetl = tmp;
-  }
+  pushLLVMcode (tmp);
 
   return tmp;
 }
@@ -416,12 +392,7 @@ LLVMcode *defineDiv(Factor arg1, Factor arg2) {
 
   factorpush(retval);
 
-  if (codetl == NULL){
-    codetl = tmp;
-  } else {
-    codetl->next = tmp;
-    codetl = tmp;
-  }
+  pushLLVMcode (tmp);
 
   return tmp;
 }
@@ -437,12 +408,7 @@ LLVMcode *defineBr(int arg1) {
 
   (tmp->args).bruncond.arg1 = arg1;
 
-  if (codetl == NULL){
-    codetl = tmp;
-  } else {
-    codetl->next = tmp;
-    codetl = tmp;
-  }
+  pushLLVMcode (tmp);
 
   return tmp;
 }
@@ -459,12 +425,7 @@ LLVMcode *defineBrCondition(int arg2, int arg3) {
   (tmp->args).brcond.arg2 = arg2;
   (tmp->args).brcond.arg3 = arg3;
 
-  if (codetl == NULL){
-    codetl = tmp;
-  } else {
-    codetl->next = tmp;
-    codetl = tmp;
-  }
+  pushLLVMcode (tmp);
 
   return tmp;
 }
@@ -480,12 +441,7 @@ LLVMcode *defineLabel() {
   (tmp->args).label.l = cntr;
   cntr ++;
 
-  if (codetl == NULL){
-    codetl = tmp;
-  } else {
-    codetl->next = tmp;
-    codetl = tmp;
-  }
+  pushLLVMcode (tmp);
 
   return tmp;
 }
@@ -511,12 +467,7 @@ LLVMcode *defineIcmp(Cmptype type, Factor arg1, Factor arg2) {
 
   factorpush(retval);
 
-  if (codetl == NULL){
-    codetl = tmp;
-  } else {
-    codetl->next = tmp;
-    codetl = tmp;
-  }
+  pushLLVMcode (tmp);
 
   return tmp;
 }
@@ -533,22 +484,59 @@ void pushNumber(int number) {
 }
 
 /* 変数をFactorとして追加 */
-void pushVariable(char *var_name, Scope type) {
+void pushVariable(char *var_name, Scope type, int val) {
   // fprintf(stderr, "PUSH VARIABLE %s(%d)\n", var_name, type);
 
   Factor tmp;
   tmp.type = type;
+  tmp.val = val;
   strcpy(tmp.vname, var_name);
 
   factorpush(tmp);
 
 }
 
-/* mainを含めた手続き／関数の実装 */
+/* main以外の手続き／関数の実装 */
 void doProcedure(char *proc_name) {
   // fprintf(stderr, "DEFINE PROCEDURE: %s\n", proc_name);
   codetl = NULL;
   cntr = 1;
+
+  Fundecl *tmp;
+  tmp = (Fundecl *)malloc(sizeof(Fundecl));
+  strcpy(tmp->fname, proc_name);
+
+  if (decltl == NULL){
+    if (declhd == NULL) {
+      declhd = tmp;
+    }
+    decltl = tmp;
+  } else {
+    decltl->next = tmp;
+    decltl = tmp;
+  }
+}
+
+
+/* main手続き／関数の実装 */
+void doMainProcedure() {
+  // fprintf(stderr, "DEFINE PROCEDURE: %s\n", proc_name);
+  codetl = NULL;
+  cntr = 1;
+
+  Fundecl *tmp;
+  tmp = (Fundecl *)malloc(sizeof(Fundecl));
+  strcpy(tmp->fname, "main");
+
+  if (decltl == NULL){
+    if (declhd == NULL) {
+      declhd = tmp;
+    }
+    decltl = tmp;
+  } else {
+    decltl->next = tmp;
+    decltl = tmp;
+  }
 
   LLVMcode *alloca_statement = defineAlloca(1);
 
@@ -564,18 +552,4 @@ void doProcedure(char *proc_name) {
 
   LLVMcode *store_statement = defineStore(arg1, arg2);
 
-  Fundecl *tmp;
-  tmp = (Fundecl *)malloc(sizeof(Fundecl));
-  tmp->codes = alloca_statement;
-  strcpy(tmp->fname, proc_name);
-
-  if (decltl == NULL){
-    if (declhd == NULL) {
-      declhd = tmp;
-    }
-    decltl = tmp;
-  } else {
-    decltl->next = tmp;
-    decltl = tmp;
-  }
 }

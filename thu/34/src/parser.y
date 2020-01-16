@@ -59,7 +59,7 @@ program
         ;
 
 outblock
-        : var_decl_part subprog_decl_part { doProcedure("main"); } statement { delete(); }
+        : var_decl_part subprog_decl_part { doMainProcedure(); } statement { delete(); }
         ;
 
 var_decl_part
@@ -367,7 +367,10 @@ var_name
             Factor arg1;
             arg1 = factorpop();
 
-            defineLoad(arg1);
+            displayFactor(stderr, arg1);
+
+            if (arg1.type == GLOBAL_VAR) defineLoad(arg1);
+            else factorpush(arg1);
           }
         ;
 

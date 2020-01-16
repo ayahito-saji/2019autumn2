@@ -161,8 +161,9 @@ LLVMcode *defineLabel();
 LLVMcode *defineIcmp(Cmptype type, Factor arg1, Factor arg2);
 
 void doProcedure(char *proc_name);
+void doMainProcedure();
 
 void pushNumber(int number);
-void pushVariable(char *var_name, Scope type);
+void pushVariable(char *var_name, Scope type, int val);
 
 #endif // _LLVM_H_
