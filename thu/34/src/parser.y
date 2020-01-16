@@ -144,16 +144,29 @@ if_statement
             pushLabelSyntax(lsyntax);
           } statement {
             LabelSyntax lsyntax = popLabelSyntax();
-            lsyntax.args.If.br1->args.brcond.arg3 = defineLabel()->args.label.l;
+            lsyntax.args.If.br2 = defineBr(1);
             pushLabelSyntax(lsyntax);
           } else_statement {
             LabelSyntax lsyntax = popLabelSyntax();
-            defineLabel();
+            int label1 = defineLabel()->args.label.l;
+            lsyntax.args.If.br2->args.bruncond.arg1 = label1;
+            if (lsyntax.args.If.br3 != NULL) {
+              lsyntax.args.If.br3->args.bruncond.arg1 = label1;
+              lsyntax.args.If.br1->args.brcond.arg3 = label1;
+            }
           }
         ;
 
 else_statement
-        : ELSE statement
+        : ELSE {
+            LabelSyntax lsyntax = popLabelSyntax();
+            lsyntax.args.If.br1->args.brcond.arg3 = defineLabel()->args.label.l;
+            pushLabelSyntax(lsyntax);
+          } statement {
+            LabelSyntax lsyntax = popLabelSyntax();
+            lsyntax.args.If.br3 = defineBr(1);
+            pushLabelSyntax(lsyntax);
+          }
         |
         ;
 
