@@ -150,10 +150,10 @@ if_statement
             LabelSyntax lsyntax = popLabelSyntax();
             int label1 = defineLabel()->args.label.l;
             lsyntax.args.If.br2->args.bruncond.arg1 = label1;
-            if (lsyntax.args.If.br3 != NULL) {
+            if (lsyntax.args.If.br3 != NULL)
               lsyntax.args.If.br3->args.bruncond.arg1 = label1;
+            else
               lsyntax.args.If.br1->args.brcond.arg3 = label1;
-            }
           }
         ;
 
