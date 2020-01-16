@@ -200,7 +200,59 @@ while_statement
         ;
 
 for_statement
-        : FOR IDENT ASSIGN expression TO expression DO statement
+        : FOR IDENT ASSIGN expression {
+            LabelSyntax lsyntax;
+            lsyntax.command = For;
+            lookup($2);
+
+            Factor arg1, arg2;
+            arg1 = factorpop();
+            arg2 = factorpop();
+
+            defineStore(arg1, arg2);
+
+            lsyntax.args.For.br1 = defineBr(1);
+
+            lsyntax.args.For.var = arg1;
+
+            lsyntax.args.For.label1 = defineLabel()->args.label.l;
+            lsyntax.args.For.br1->args.bruncond.arg1 = lsyntax.args.For.label1;
+
+            defineLoad(arg1);
+
+            pushLabelSyntax(lsyntax);
+          } TO expression {
+            LabelSyntax lsyntax = popLabelSyntax();
+
+            Factor arg1, arg2;
+            arg2 = factorpop();
+            arg1 = factorpop();
+            defineIcmp(SLE, arg1, arg2);
+
+            lsyntax.args.For.br2 = defineBrCondition(1, 1);
+
+            lsyntax.args.For.br2->args.brcond.arg2 = defineLabel()->args.label.l;
+
+            pushLabelSyntax(lsyntax);
+
+
+          } DO statement {
+            LabelSyntax lsyntax = popLabelSyntax();
+
+            defineLoad(lsyntax.args.For.var);
+
+            Factor arg1, arg2;
+            pushNumber(1);
+            arg2 = factorpop();
+            arg1 = factorpop();
+
+            defineAdd(arg1, arg2);
+
+            defineStore(lsyntax.args.For.var, factorpop());
+
+            defineBr(lsyntax.args.For.label1);
+            lsyntax.args.For.br2->args.brcond.arg3 = defineLabel()->args.label.l;
+          }
         ;
 
 proc_call_statement

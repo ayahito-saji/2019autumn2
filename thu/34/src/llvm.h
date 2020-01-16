@@ -118,6 +118,12 @@ typedef struct labelSyntax {
       LLVMcode *br2;
       LLVMcode *br3;
     } If;
+    struct {
+      Factor var;
+      LLVMcode *br1;
+      int label1;
+      LLVMcode *br2;
+    } For;
   } args;
 } LabelSyntax;
 
