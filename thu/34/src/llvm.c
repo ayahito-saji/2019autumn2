@@ -185,7 +185,7 @@ void displayLlvmcodes(FILE *fp, LLVMcode *code) {
 void displayLlvmfundecl(FILE *fp, Fundecl *decl ) {
   if (decl == NULL) return;
   fprintf(fp, "define ");
-  
+
   switch (decl->rettype) {
     case VOID:
       fprintf(fp, "void");break;
@@ -251,7 +251,7 @@ LLVMcode *defineGlobalVar( char *var_name ) {
 }
 
 /* LLVM Alloca命令の作成 */
-LLVMcode *defineAlloca(int reg) {
+LLVMcode *defineAlloca() {
   // fprintf(stderr, "DEFINE ALLOCA: %%%d\n", reg);
 
   LLVMcode *tmp;
@@ -261,7 +261,8 @@ LLVMcode *defineAlloca(int reg) {
 
   Factor retval;
   retval.type = LOCAL_VAR;
-  retval.val = reg;
+  retval.val = cntr;
+  cntr++;
   (tmp->args).alloca.retval = retval;
 
   pushLLVMcode (tmp);
@@ -571,7 +572,7 @@ void doMainProcedure() {
     decltl = tmp;
   }
 
-  LLVMcode *alloca_statement = defineAlloca(1);
+  LLVMcode *alloca_statement = defineAlloca();
 
   Factor arg1, arg2;
 

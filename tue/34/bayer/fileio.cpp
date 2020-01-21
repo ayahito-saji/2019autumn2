@@ -108,7 +108,37 @@ void save_image(const char *fname, Image *img){
 }
 
 void bayer_normal(Image *input, Image *output){
-	
+	for (int y=0;y<input->h/2;y++) {
+		for (int x=0;x<input->w/2;x++) {
+			int ix0 = (2 * (x-1) >= 0) ? 2 * (x-1) : 2 * x;
+			int iy0 = (2 * (y-1) >= 0) ? 2 * (y-1) : 2 * y;
+			int ix1 = 2 * x;
+			int iy1 = 2 * y;
+			int ix2 = (2 * (x+1) < input->w) ? 2 * (x+1) : 2 * x;
+			int iy2 = (2 * (y+1) < input->h) ? 2 * (y+1) : 2 * y;
+
+			fprintf(stderr, "%d %d %d %d\n", ix1, iy1, ix2, iy2);
+
+			/* RED */
+			output->data[(ix1 + iy1 * (input->w))*3] = input->data[ix1+iy1*(input->w)];
+			output->data[((ix1+1) + iy1 * (input->w))*3] = (input->data[ix1 + iy1 * (input->w)] + input->data[ix2 + iy1 * (input->w)])/2;
+			output->data[(ix1 + (iy1+1) * (input->w))*3] = (input->data[ix1 + iy1 * (input->w)] + input->data[ix1 + iy2 * (input->w)])/2;
+			output->data[((ix1+1) + (iy1+1) * (input->w))*3] = (input->data[ix1 + iy1 * (input->w)] + input->data[ix2 + iy1 * (input->w)] + input->data[ix1 + iy2 * (input->w)] + input->data[ix2 + iy2 * (input->w)])/4;
+
+      /* GREEN */
+			output->data[(ix1 + iy1 * (input->w))*3+1] = (input->data[(ix1)+(iy0+1)*(input->w)] + input->data[(ix0+1)+(iy1)*(input->w)] + input->data[(ix1+1)+(iy1)*(input->w)] + input->data[(ix1)+(iy1+1)*(input->w)])/4;
+			output->data[((ix1+1) + iy1 * (input->w))*3+1] = input->data[(ix1+1)+(iy1)*(input->w)];
+			output->data[(ix1 + (iy1+1) * (input->w))*3+1] = input->data[(ix1)+(iy1+1)*(input->w)];
+			output->data[((ix1+1) + (iy1+1) * (input->w))*3+1] = (input->data[(ix1+1)+(iy1)*(input->w)] + input->data[(ix1)+(iy1+1)*(input->w)] + input->data[(ix1+1)+(iy2)*(input->w)] + input->data[(ix2)+(iy1+1)*(input->w)])/4;
+
+			/* BLUE */
+			output->data[(ix1 + iy1 * (input->w))*3+2] = (input->data[(ix0+1)+(iy0+1)*(input->w)] + input->data[(ix1+1)+(iy0+1)*(input->w)] + input->data[(ix0+1)+(iy1+1)*(input->w)] + input->data[(ix1+1)+(iy1+1)*(input->w)])/4;
+			output->data[((ix1+1) + iy1 * (input->w))*3+2] = (input->data[(ix1+1)+(iy0+1)*(input->w)] + input->data[(ix1+1)+(iy1+1)*(input->w)])/2;
+			output->data[(ix1 + (iy1+1) * (input->w))*3+2] = (input->data[(ix0+1)+(iy1+1)*(input->w)] + input->data[(ix1+1)+(iy1+1)*(input->w)])/2;
+			output->data[((ix1+1) + (iy1+1) * (input->w))*3+2] = input->data[(ix1+1)+(iy1+1)*(input->w)];
+
+		}
+	}
 }
 
 /********** �摜�̓ǂݍ��݁C�ۑ��@�����܂�*******************************/

@@ -1,0 +1,82 @@
+\documentclass[uplatex]{jsarticle}
+\usepackage{listings, jlisting}
+\lstset{
+  basicstyle={\ttfamily},
+  identifierstyle={\small},
+  commentstyle={\smallitshape},
+  keywordstyle={\small\bfseries},
+  ndkeywordstyle={\small},
+  stringstyle={\small\ttfamily},
+  frame={tb},
+  breaklines=true,
+  columns=[l]{fullflexible},
+  numbers=left,
+  xrightmargin=0zw,
+  xleftmargin=3zw,
+  numberstyle={\scriptsize},
+  stepnumber=1,
+  numbersep=1zw,
+  lineskip=-0.5ex
+}
+\usepackage[dvipdfmx]{graphicx}
+\title{コンピュータ科学実験3}
+
+\author{101730153 佐治 礼仁 saji.ayahito@h.mbox.nagoya-u.ac.jp}
+\date{\today}
+\begin{document}
+\maketitle
+\newpage
+\tableofcontents
+\newpage
+\section{実験4}
+\subsection{目的}
+PL-0言語のコンパイラを作成する前に，四則演算のみを取り扱う簡易コンパイラを作成する．実験3までに実装したプログラムから，LLVMコードを目的コードとして出力するコンパイラを作成する．実験5において，作成したコンパイラをPL-0言語を処理するコンパイルへと追加実装する．
+またコードを出力するために，計算に必要な数値や変数を逆ポーランド的な並びとして処理したり，LLVMコードを格納する構造体を定義し，線形リストとして保持する等の工夫を試みる．
+\subsection{実験方法}
+まず，LLVMコードを出力するためのCプログラムとして，\verb#llvm.h#および\verb#llvm.c#を作成した．
+これは，\verb#parser.y#と連動して，プログラムをパースしながら，\verb#llvm#コードを作成するプログラムである．
+LLVMコードを出力するにあたって，将来的にバックパッチが必要になる．バックパッチとは，すでに作成しておいたLLVMコードの数値やレジスタ番号を後から変更する作業のことである．バックパッチ処理は，例えばif文やfor文のジャンプ先等の条件分岐命令や繰り返し命令を含む構文において必要となる．
+
+これを実装するにあたって，もし構文解析時にLLVMコードを出力してしまうと後から特定の行の特定の文字を変更することが大変困難になってしまう．
+この課題を解決するために，今後の実験では，1つ1つのLLVMコードを構造体として格納し，それらを線形リストとして繋ぐことでソースコードを表現した．
+これによって，バックパッチを行う際は，LLVMのコードのポインタを格納しておき，後から指定した構造体の特定の属性の値を変更すれば良いことになる．
+パースが終了した時点で，それぞれの構造体を元にLLVMコードを出力することで，コンパイラの機能を実現した．
+
+\subsubsection{Factor}
+ソースコードの式中に出現する要素は，大域変数，局所変数，実数値のいずれかである．そこで，それらを一つにまとめた構造体が必要である．これを\verb#Factor#と呼称する．式とは\verb#Factor#を1つ，または複数引数として受け取り，一つの\verb#Factor#を返す関数と見ることができる．
+例えば，\verb#+#計算は，2つの\verb#Factor#を引数として受け取り，値を加算して\verb#Factor#として返す処理だと見做すことができる．
+
+PL-0言語では，変数またはリテラルは整数型しかないため，\verb#Factor#のメンバ変数は「変数名(\verb#ver_name#)」「実数値またはレジスタ番号(\verb#var#)」「種別(\verb#type#)」である．
+なお変数の種別は，実験3で使用した\verb#Scope#と等しい．
+
+\begin{lstlisting}[caption=変数および実数値を表す構造体Factor,label=lst:ex4:llvm.h:factor]
+/* 変数もしくは定数の型 */
+typedef struct {
+  Scope type;      /* 変数（のレジスタ）か整数の区別 */
+  char vname[256]; /* 変数の場合の変数名 */
+  int val;         /* 整数の場合はその値，変数の場合は割り当てたレジスタ番号 */
+} Factor;
+\end{lstlisting}
+
+\begin{lstlisting}[caption=LLVMコマンドを表す列挙型LLVMcommand,label=lst:ex4:llvm.h:llvmcommand]
+typedef enum {
+  Alloca,   /* alloca */
+  Store,    /* store  */
+  Load,     /* load   */
+  BrUncond, /* br     */
+  BrCond,   /* brc    */
+  Label,    /* label  */
+  Add,      /* add    */
+  Sub,      /* sub    */
+  Mul,      /* mul    */
+  Div,      /* div    */
+  Icmp,     /* icmp   */
+  Ret,      /* ret    */
+  CommonGlobal /* common_global */ /* 実験4 追加 */
+} LLVMcommand;
+\end{lstlisting}
+\subsection{実験結果}
+
+\subsection{考察}
+
+\end{document}

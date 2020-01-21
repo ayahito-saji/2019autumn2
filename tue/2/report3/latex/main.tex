@@ -1,0 +1,42 @@
+\documentclass[uplatex]{jsarticle}
+\usepackage[dvipdfmx]{graphicx}
+\title{ソフトウェア設計法3}
+
+\author{101730153 佐治 礼仁 saji.ayahito@h.mbox.nagoya-u.ac.jp}
+\date{\today}
+\begin{document}
+\maketitle
+\section{身近に使われているシステムが持つデータ定義のうち将来変更される可能性のあるデータを想定し、以下の問いに答えよ。}
+\subsection{既存のシステムが持つデータ定義を200字以内で説明し、オブジェクト(オブジェクト名称、属性、操作とその説明)として定義せよ。}
+名古屋大学の学務ポータルでの講義履修システムにおける，1つの講義のデータを取り扱うオブジェクト「講義」を表\ref{tbl:subject}のように定義する．
+\begin{table}[tb]
+  \begin{center}
+    \caption{講義(Subject)}
+    \begin{tabular}{|l|l|l|} \hline
+      属性 & 講義ID & unsigned long long int \\ \hline
+      属性 & 講義名 & char[256] \\ \hline
+      属性 & 講師 & char[256] \\ \hline
+      属性 & 講義室 & char[256] \\ \hline
+      属性 & 単位数 & unsigned int \\ \hline
+      属性 & 開講曜日 & enum weekday \\ \hline
+      属性 & 開講時間 & unsigned int \\ \hline
+      属性 & 開講期間 & enum term \\ \hline
+      属性 & 対象学年 & unsigned int[4] \\ \hline
+      操作 & 開講期間の取得 & enum term \\ \hline
+      操作 & 開講期間が春期かどうか & boolean(int) \\ \hline
+      操作 & 開講期間が秋期かどうか & boolean(int) \\ \hline
+    \end{tabular}
+    \label{tbl:subject}
+  \end{center}
+\end{table}
+ただし，\verb#enum term#は\verb#{Spring, Autumn, Other}#とする．これは，春期，秋期，集中講義等のその他をそれぞれ示している．
+また，\verb#enum weekday#は\verb#{Sunday, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday}#とする．これは曜日を示している．
+\subsection{1のデータ定義に対する(将来の)変更を200字以内で説明し、対応するオブジェクトを定義せよ。}
+2017年度より，名古屋大学情報学部ではクォーター制度が取られるようになったが，将来的には全ての学部がクォーター制の講義に変わられる可能性がある．その場合，
+開講期間のデータ構造に関わる\verb#enum term#は\verb#{Spring, Autumn, Other}#から\verb#{Spring1, Spring2, Autumn1, Autumn2, Other}#に変更される可能性がある．
+\subsection{1, 2のデータ定義を参照、変更するプログラムを想定し、そのプログラムが変更を1のデータ定義を収納しつつ、2の変更があっても影響が小さくなるようなオブジェクト定義(オブジェクト名称、属性、操作)を答え、影響が小さくなる理由を200字以内で説明せよ。}
+現在，一部の講義のみクォーター制が取られており，そのほかは二期制である．今後も学部ごとにクォーター制に徐々に移行していくことが考えられる．
+
+\verb#enum term#を\verb#{Spring, Autumn, Spring1, Spring2, Autumn1, Autumn2, Other}#と定義しておくことによって，徐々に講義の形態が変更される場合でもクォーター制に対応できる．
+また，春期かどうかを取得する操作および秋期かどうか取得する操作では，開講期間が\verb#Spring, Spring1, Spring2}#のいずれかならば春として扱い，開講期間が\verb#Autumn, Autumn1, Autumn2}#のいずれかであれば秋として扱えば良い．これによって，影響を最小限に止めることができる．
+\end{document}

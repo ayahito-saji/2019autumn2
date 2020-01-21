@@ -155,7 +155,7 @@ void displayLlvmfundecl(FILE *fp, Fundecl *decl );
 void outputCode ();
 
 LLVMcode *defineGlobalVar( char *var_name );
-LLVMcode *defineAlloca(int reg);
+LLVMcode *defineAlloca();
 LLVMcode *defineStore(Factor arg1, Factor arg2);
 LLVMcode *defineLoad(Factor arg1);
 LLVMcode *defineAdd(Factor arg1, Factor arg2);

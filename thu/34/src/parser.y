@@ -268,7 +268,10 @@ block_statement
         ;
 
 read_statement
-        : READ LPAREN IDENT RPAREN { lookup($3); }
+        : READ LPAREN IDENT RPAREN {
+            lookup($3);
+            defineAlloca();
+          }
         ;
 
 write_statement
