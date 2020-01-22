@@ -580,9 +580,7 @@ void doMainProcedure() {
   arg1.val = 0;
 
   arg2.type = LOCAL_VAR;
-  arg2.val = cntr;
-  cntr ++;
-
+  arg2.val = 1;
 
   LLVMcode *store_statement = defineStore(arg1, arg2);
 

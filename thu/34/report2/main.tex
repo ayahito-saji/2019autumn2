@@ -827,9 +827,7 @@ void doMainProcedure() {
   arg1.val = 0;
 
   arg2.type = LOCAL_VAR;
-  arg2.val = cntr;
-  cntr ++;
-
+  arg2.val = 1;
 
   LLVMcode *store_statement = defineStore(arg1, arg2);
 
@@ -1016,9 +1014,34 @@ begin
 end.
 \end{lstlisting}
 
+このプログラムをソースコード\verb#lst:ex4:parser#に示されるコマンドを用いてコンパイルした．
+\begin{lstlisting}[caption=parserコマンド,label=lst:ex4:parser]
+./parser ./samples/ex1.p
+\end{lstlisting}
+
+
 \subsection{実験結果}
+コンパイルの実行結果，\verb#result.ll#に，ソースコード\ref{lst:ex4:result.ll}が出力された．
 
+\begin{lstlisting}[caption=result.ll,label=lst:ex4:result.ll]
+@x = common global i32 0, align 4
+@y = common global i32 0, align 4
+@z = common global i32 0, align 4
+define i32 @main #0() {
+%1 = alloca i32, align 4
+store i32 0, i32* %1, align 4
+store i32 12, i32* @x, align 4
+store i32 20, i32* @y, align 4
+%2 = load i32, i32* @x, align 4
+%3 = load i32, i32* @y, align 4
+%4 = add nsw i32 %2, %3, align 4
+store i32 %4, i32* @z, align 4
+ret %1
+}
+\end{lstlisting}
 
+正しくmain関数が定義されており，加算が実装されていることが確かめられた．
+次に，このLLVMコードを実際に実行した．
 
 \subsection{考察}
 
