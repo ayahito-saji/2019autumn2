@@ -121,7 +121,7 @@ void displayLlvmcodes(FILE *fp, LLVMcode *code) {
       displayFactor(fp, (code->args).add.arg1 );
       fprintf(fp, ", ");
       displayFactor(fp, (code->args).add.arg2 );
-      fprintf(fp, ", align 4\n");
+      fprintf(fp, "\n");
       break;
     case Sub:
       displayFactor(fp, (code->args).sub.retval );
@@ -129,7 +129,7 @@ void displayLlvmcodes(FILE *fp, LLVMcode *code) {
       displayFactor(fp, (code->args).sub.arg1 );
       fprintf(fp, ", ");
       displayFactor(fp, (code->args).sub.arg2 );
-      fprintf(fp, ", align 4\n");
+      fprintf(fp, "\n");
       break;
     case Mul:
       displayFactor(fp, (code->args).mul.retval );
@@ -137,7 +137,7 @@ void displayLlvmcodes(FILE *fp, LLVMcode *code) {
       displayFactor(fp, (code->args).mul.arg1 );
       fprintf(fp, ", ");
       displayFactor(fp, (code->args).mul.arg2 );
-      fprintf(fp, ", align 4\n");
+      fprintf(fp, "\n");
       break;
     case Div:
       displayFactor(fp, (code->args).div.retval );
@@ -145,7 +145,7 @@ void displayLlvmcodes(FILE *fp, LLVMcode *code) {
       displayFactor(fp, (code->args).div.arg1 );
       fprintf(fp, ", ");
       displayFactor(fp, (code->args).div.arg2 );
-      fprintf(fp, ", align 4\n");
+      fprintf(fp, "\n");
       break;
     case Icmp:
       displayFactor(fp, (code->args).icmp.retval );
@@ -168,12 +168,10 @@ void displayLlvmcodes(FILE *fp, LLVMcode *code) {
       displayFactor(fp, (code->args).icmp.arg1 );
       fprintf(fp, ", ");
       displayFactor(fp, (code->args).icmp.arg2 );
-      fprintf(fp, ", align 4\n");
+      fprintf(fp, "\n");
       break;
     case Ret:
-      fprintf(fp, "ret ");
-      displayFactor(fp, (code->args).ret.arg1 );
-      fprintf(fp, "\n");
+      fprintf(fp, "ret i32 0\n");
       break;
     default:
       break;
@@ -192,7 +190,7 @@ void displayLlvmfundecl(FILE *fp, Fundecl *decl ) {
     case INT32:
       fprintf(fp, "i32");break;
   }
-  fprintf(fp, " @%s #0() {\n", decl->fname);
+  fprintf(fp, " @%s() {\n", decl->fname);
   displayLlvmcodes(fp, decl->codes);
   fprintf(fp, "}\n");
   if(decl->next != NULL) {

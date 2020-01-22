@@ -320,7 +320,7 @@ void displayLlvmcodes(FILE *fp, LLVMcode *code) {
       displayFactor(fp, (code->args).add.arg1 );
       fprintf(fp, ", ");
       displayFactor(fp, (code->args).add.arg2 );
-      fprintf(fp, ", align 4\n");
+      fprintf(fp, "\n");
       break;
     case Sub:
       displayFactor(fp, (code->args).sub.retval );
@@ -328,7 +328,7 @@ void displayLlvmcodes(FILE *fp, LLVMcode *code) {
       displayFactor(fp, (code->args).sub.arg1 );
       fprintf(fp, ", ");
       displayFactor(fp, (code->args).sub.arg2 );
-      fprintf(fp, ", align 4\n");
+      fprintf(fp, "\n");
       break;
     case Mul:
       displayFactor(fp, (code->args).mul.retval );
@@ -336,7 +336,7 @@ void displayLlvmcodes(FILE *fp, LLVMcode *code) {
       displayFactor(fp, (code->args).mul.arg1 );
       fprintf(fp, ", ");
       displayFactor(fp, (code->args).mul.arg2 );
-      fprintf(fp, ", align 4\n");
+      fprintf(fp, "\n");
       break;
     case Div:
       displayFactor(fp, (code->args).div.retval );
@@ -344,7 +344,7 @@ void displayLlvmcodes(FILE *fp, LLVMcode *code) {
       displayFactor(fp, (code->args).div.arg1 );
       fprintf(fp, ", ");
       displayFactor(fp, (code->args).div.arg2 );
-      fprintf(fp, ", align 4\n");
+      fprintf(fp, "\n");
       break;
     case Icmp:
       displayFactor(fp, (code->args).icmp.retval );
@@ -367,12 +367,10 @@ void displayLlvmcodes(FILE *fp, LLVMcode *code) {
       displayFactor(fp, (code->args).icmp.arg1 );
       fprintf(fp, ", ");
       displayFactor(fp, (code->args).icmp.arg2 );
-      fprintf(fp, ", align 4\n");
+      fprintf(fp, "\n");
       break;
     case Ret:
-      fprintf(fp, "ret ");
-      displayFactor(fp, (code->args).ret.arg1 );
-      fprintf(fp, "\n");
+      fprintf(fp, "ret i32 0\n");
       break;
     default:
       break;
@@ -407,7 +405,7 @@ void displayLlvmfundecl(FILE *fp, Fundecl *decl ) {
     case INT32:
       fprintf(fp, "i32");break;
   }
-  fprintf(fp, " @%s #0() {\n", decl->fname);
+  fprintf(fp, " @%s () {\n", decl->fname);
   displayLlvmcodes(fp, decl->codes);
   fprintf(fp, "}\n");
   if(decl->next != NULL) {
@@ -1024,20 +1022,21 @@ end.
 コンパイルの実行結果，\verb#result.ll#に，ソースコード\ref{lst:ex4:result.ll}が出力された．
 
 \begin{lstlisting}[caption=result.ll,label=lst:ex4:result.ll]
-@x = common global i32 0, align 4
-@y = common global i32 0, align 4
-@z = common global i32 0, align 4
-define i32 @main #0() {
-%1 = alloca i32, align 4
-store i32 0, i32* %1, align 4
+  @x = common global i32 0, align 4
+  @y = common global i32 0, align 4
+  @z = common global i32 0, align 4
+define i32 @main() {
+  %1 = alloca i32, align 4
+  store i32 0, i32* %1, align 4
 store i32 12, i32* @x, align 4
 store i32 20, i32* @y, align 4
 %2 = load i32, i32* @x, align 4
 %3 = load i32, i32* @y, align 4
-%4 = add nsw i32 %2, %3, align 4
+%4 = add nsw i32 %2, %3
 store i32 %4, i32* @z, align 4
-ret %1
+ret i32 0
 }
+
 \end{lstlisting}
 
 正しくmain関数が定義されており，加算が実装されていることが確かめられた．
