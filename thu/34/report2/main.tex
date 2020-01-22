@@ -33,8 +33,8 @@
 PL-0言語のコンパイラを作成する前に，四則演算のみを取り扱う簡易コンパイラを作成する．実験3までに実装したプログラムから，LLVMコードを目的コードとして出力するコンパイラを作成する．実験5において，作成したコンパイラをPL-0言語を処理するコンパイルへと追加実装する．
 またコードを出力するために，計算に必要な数値や変数を逆ポーランド的な並びとして処理したり，LLVMコードを格納する構造体を定義し，線形リストとして保持する等の工夫を試みる．
 \subsection{実験方法}
-まず，LLVMコードを出力するためのCプログラムとして，\verb#llvm.h#および\verb#llvm.c#を作成した．
-これは，\verb#parser.y#と連動して，プログラムをパースしながら，\verb#llvm#コードを作成するプログラムである．
+まず，LLVMコードを出力するためのCプログラムとして，\verb#llvm.h#および\verb#llvm.c#を作成した．これは，\verb#parser.y#と連動して，プログラムをパースしながら，\verb#llvm#コードを作成するプログラムである．ソースコードを一つのファイルに記述すると利便性が落ちるためである．コンパイラ中で使用する構造体の定義を\verb#llvm.h#内で行い，\verb#llvm.c#内でそれら構造体を用いて，実際の処理を行う関数を記述した．\verb#parser.y#では，\verb#llvm.c#の変数を\verb#extern#を用いて呼び出しながら，カプセル化を意識してプログラムを記述した．
+
 LLVMコードを出力するにあたって，将来的にバックパッチが必要になる．バックパッチとは，すでに作成しておいたLLVMコードの数値やレジスタ番号を後から変更する作業のことである．バックパッチ処理は，例えばif文やfor文のジャンプ先等の条件分岐命令や繰り返し命令を含む構文において必要となる．
 
 これを実装するにあたって，もし構文解析時にLLVMコードを出力してしまうと後から特定の行の特定の文字を変更することが大変困難になってしまう．
@@ -42,12 +42,14 @@ LLVMコードを出力するにあたって，将来的にバックパッチが�
 これによって，バックパッチを行う際は，LLVMのコードのポインタを格納しておき，後から指定した構造体の特定の属性の値を変更すれば良いことになる．
 パースが終了した時点で，それぞれの構造体を元にLLVMコードを出力することで，コンパイラの機能を実現した．
 
-\subsubsection{Factor}
+このレポートでは，構造体の定義から解説する．実験で利用した構造体である\verb#Factor#，\verb#LLVMcode#，\verb#Fundecl#，および\verb#FactorStack#はいずれも\verb#llvm.h#に記述し，コンパイラプログラムの見通しを良くした．
+
+\subsubsection{Factor構造体の定義}
 ソースコードの式中に出現する要素は，大域変数，局所変数，実数値のいずれかである．そこで，それらを一つにまとめた構造体が必要である．これを\verb#Factor#と呼称する．式とは\verb#Factor#を1つ，または複数引数として受け取り，一つの\verb#Factor#を返す関数と見ることができる．
 例えば，\verb#+#計算は，2つの\verb#Factor#を引数として受け取り，値を加算して\verb#Factor#として返す処理だと見做すことができる．
 
 PL-0言語では，変数またはリテラルは整数型しかないため，\verb#Factor#のメンバ変数は「変数名(\verb#ver_name#)」「実数値またはレジスタ番号(\verb#var#)」「種別(\verb#type#)」である．
-なお変数の種別は，実験3で使用した\verb#Scope#と等しい．
+なお変数の種別は，実験3で使用した\verb#Scope#と等しい．これを構造体として定義したものをソースコード\ref{lst:ex4:llvm.h:factor}に示す．
 
 \begin{lstlisting}[caption=変数および実数値を表す構造体Factor,label=lst:ex4:llvm.h:factor]
 /* 変数もしくは定数の型 */
@@ -58,6 +60,22 @@ typedef struct {
 } Factor;
 \end{lstlisting}
 
+\subsubsection{LLVMcode構造体の定義}
+前述したとおりLLVMコードは，バックパッチ処理のためにLLVM命令に対応した構造体を線形リストに繋いだものをもとに出力される．
+その際に使用されるLLVM命令に対応した構造体を\verb#LLVMcode#と呼称する．\verb#LLVMcode#構造体は，そのLLVMの命令の種別としてenum型の\verb#LLVMcommand#を，命令に応じた引数群\verb#args#，線形リストにするための次の命令のポインタを持つ．
+まず，LLVM命令の種別に対応するenum型の\verb#LLVMcommand#について説明する．この定義をソースコード\ref{lst:ex4:llvm.h:llvmcommand}に示す．
+実験4では四則演算を対象としたコンパイラであるため，次のLLVM命令を使用した．
+\begin{itemize}
+  \item {メモリ確保命令\verb#Alloca#}
+  \item {メモリ書き込み命令\verb#Store#}
+  \item {メモリ読み込み命令\verb#Load#}
+  \item {加算命令\verb#Add#}
+  \item {減算命令\verb#Sub#}
+  \item {積算命令\verb#Mul#}
+  \item {除算命令\verb#Div#}
+  \item {返り値を返す命令\verb#Ret#}
+  \item {グローバル変数定義命令\verb#CommonGlobal#}
+\end{itemize}
 \begin{lstlisting}[caption=LLVMコマンドを表す列挙型LLVMcommand,label=lst:ex4:llvm.h:llvmcommand]
 typedef enum {
   Alloca,   /* alloca */
@@ -75,7 +93,932 @@ typedef enum {
   CommonGlobal /* common_global */ /* 実験4 追加 */
 } LLVMcommand;
 \end{lstlisting}
+
+\verb#LLVMcode#構造体の定義をソースコード\ref{lst:ex4:llvm.h:llvmcode}に示す．
+\verb#LLVMcode#構造体は，命令の種別，命令に必要な引数，次の命令を差示すポインタをメンバ変数として持つ．命令に必要な引数は，命令によって異なるため，これらは共用体として定義して，メモリ消費を抑えるようにした．
+基本的には引数は\verb#Factor#型を取るが，一部の命令はレジスタ番号としてint型を取るなどの例外がある．
+なお実験4では利用しないが，比較命令では比較方法(以上，以下，より大きい，より小さい，等しい，等しくない)の種別を示すための\verb#Cmptype#が存在するが，ここでは省略する．
+
+\begin{lstlisting}[caption=LLVM命令を表す構造体LLVMcode,label=lst:ex4:llvm.h:llvmcode]
+typedef struct llvmcode {
+  LLVMcommand command; /* 命令名 */
+  union { /* 命令の引数 */
+    struct { /* common_global */
+      Factor retval;
+    } common_global;
+    struct { /* alloca */
+      Factor retval;
+    } alloca;
+    struct { /* store  */
+      Factor arg1;  Factor arg2;
+    } store;
+    struct { /* load   */
+      Factor arg1;  Factor retval;
+    } load;
+    struct { /* br     */
+      int arg1;
+    } bruncond;
+    struct { /* brc    */
+      Factor arg1;  int arg2;  int arg3;
+    } brcond;
+    struct { /* label  */
+      int l;
+    } label;
+    struct { /* add    */
+      Factor arg1;  Factor arg2;  Factor retval;
+    } add;
+    struct { /* sub    */
+      Factor arg1;  Factor arg2;  Factor retval;
+    } sub;
+    struct { /* mul    */
+      Factor arg1;  Factor arg2;  Factor retval;
+    } mul;
+    struct { /* div    */
+      Factor arg1;  Factor arg2;  Factor retval;
+    } div;
+    struct { /* icmp   */
+      Cmptype type;  Factor arg1;  Factor arg2;  Factor retval;
+    } icmp;
+    struct { /* ret    */
+      Factor arg1;
+    } ret;
+  } args;
+  /* 次の命令へのポインタ */
+  struct llvmcode *next;
+} LLVMcode;
+\end{lstlisting}
+\subsubsection {Fundeclの定義}
+\verb#Fundecl#は，プログラム中の手続きまたは関数を表す構造体である．PL-*言語では大域変数を定義した後，関数または手続きを宣言し，最後にmain関数（またはmain手続き）を定義する仕様である．
+\verb#Fundecl#は手続きまたは関数を表す構造体であるので，関数名および関数中で使用される命令列の線形リストの戦闘ポインタおよび次の関数のポインタを保持する．すなわち，\verb#Fundecl#自体も手続き・関数を表す線形リストでありながら，それぞれの関数のコードの線形リスト\verb#codes#を保持するように定義した．この定義をソースコード\ref{lst:ex4:llvm.h:fundecl}に示す．
+
+このように実装しておくことで，関数を順に表示する時に内部のコードを順に表示するように実装すれば，正しく全ての関数・手続きのソースコードが表示されるようになる．関数・手続き名\verb#fname#は最大で255文字まで許容する．それ以上の際はエラーが発生する．なお，実験4においては手続き呼び出しにおいては引数を定義することができないため，\verb#arity#および\verb#args#については省略する．
+\begin{lstlisting}[caption=関数を表すFundecl,label=lst:ex4:llvm.h:fundecl]
+/* LLVMの関数定義 */
+typedef struct fundecl {
+  char fname[256];      /* 関数名                      */
+  unsigned arity;       /* 引数個数                    */
+  Factor args[10];      /* 引数名                      */
+  LLVMcode *codes;      /* 命令列の線形リストへのポインタ */
+  struct fundecl *next; /* 次の関数定義へのポインタ      */
+  ReturnType rettype;
+} Fundecl;
+\end{lstlisting}
+
+\subsubsection{FactorStack構造体の定義}
+\verb#Factor#は式中で利用されるが，式では木構造として実行されるため値を一時的に保持するためにはスタック構造が都合が良い．
+例えば，加算演算は，２つの\verb#Factor#を引数にとって，１つの\verb#Factor#を返すが，この性質はスタック構造を用いれば２つの\verb#Factor#をスタックからpopして，計算結果である\verb#Factor#をスタックをpushすると表現される．適切な文法の式であれば，この処理を逆ポーランド記法の順で行うことで，計算結果としてスタックの中に１つだけ\verb#Factor#がpushされた状態として終了する．
+\verb#FactorStack#は，計算のためのスタックを定義した構造体である．これをソースコード\verb#lst:ex4:llvm.h:factorstack#に示す．内部にスタック列としての\verb#element#と，スタックポインタを表す\verb#top#を保持するようにした．
+\begin{lstlisting}[caption=FactorのスタックであるFactorStack,label=lst:ex4:llvm.h:factorstack]
+/* 変数もしくは定数のためのスタック */
+typedef struct {
+  Factor element[100];  /* スタック（最大要素数は100まで） */
+  unsigned int top;     /* スタックのトップの位置         */
+} Factorstack;
+\end{lstlisting}
+
+次に，\verb#llvm.c#中に記述した関数について説明する．
+コードを記述する時の原則として，次を満たすようにした．
+\begin{itemize}
+  \item{LLVM命令定義の際は，新しく命令用のメモリを確保したあと，その命令のポインタを返り値として返す}
+  \item{スタックに積む命令は原則としてpushという文字列を関数名内に含む}
+  \item{スタックから取り出す命令は原則としてpopという文字列を関数名内に含む}
+  \item{LLVMをファイルに出力する処理は原則としてdisplayという文字列を関数名内に含む}
+\end{itemize}
+
+\subsubsection{変数類の定義}
+\verb#llvm.c#では，\verb#llvm.h#で定義した構造体の実体を生成して大域変数として保持している．
+これの定義をソースコード\ref{lst:ex4:llvm.c:variables}に示す．
+\begin{lstlisting}[caption=コンパイラ中で利用した変数,label=lst:ex4:llvm.c:variables]
+Factorstack fstack; /* 整数もしくはレジスタ番号を保持するスタック */
+
+LLVMcode *codehd = NULL; /* 命令列の先頭のアドレスを保持するポインタ */
+LLVMcode *codetl = NULL; /* 命令列の末尾のアドレスを保持するポインタ */
+unsigned int cntr = 0;
+
+/* 関数定義の線形リストの先頭の要素のアドレスを保持するポインタ */
+Fundecl *declhd = NULL;
+/* 関数定義の線形リストの末尾の要素のアドレスを保持するポインタ */
+Fundecl *decltl = NULL;
+
+\end{lstlisting}
+
+\verb#fstack#は\verb#Factorstack#型の変数であり，式中の変数や整数を一時保持するためのスタックとして利用される．
+
+\verb#codehd#は\verb#LLVMcode#型のポインタであり，目的コードの先頭LLVM命令のアドレスを示すポインタである．目的コードを生成する際に\verb#codehd#を起点として出力を行った．
+
+\verb#codetl#は\verb#LLVMcode#型のポインタであり，目的コードの最後尾LLVM命令のアドレスを示すポインタである．LLVM命令を追加する際は，新たな命令のためのメモリを確保し，\verb#codetl#に命令を連結するようにした．線形リストの最後尾を変数として保持しておくことで，末尾を参照する時間をO(n)からO(1)に縮小した．
+
+\verb#cntr#は\verb#unsigned int#型の変数であり，関数内での通しレジスタ番号を保持する．レジスタを必要とする命令の場合，新たに\verb#cntr#番目のレジスタを割り当て，\verb#cntr#をインクリメントする．関数を定義した場合は，この\verb#cntr#を1に初期化した．
+
+\verb#declhd#は\verb#Fundecl#型のポインタであり，目的コードの先頭の関数・手続きのアドレスを示すポインタである．手続きを表示する際には，\verb#declhd#を起点としてコードの出力を行う．
+
+\verb#decltl#は\verb#Fundecl#型のポインタであり，目的コードの末尾の関数・手続きのアドレスを示すポインタである．関数・手続きを追加する際は，新たな関数・手続きのためのメモリを確保し，\verb#decltl#に関数を連結するようにした．このようにすることで，\verb#codetl#と同じように，線形リストの最後尾を参照する時間を縮小した．
+
+\subsubsection{displayFactor関数}
+\verb#displayFactor#関数は，\verb#Factor#を表示するための関数である．\verb#Factor#は大域変数，局所変数，定数の場合があるため，それぞれによって表示を変えなければならない．
+大域変数の場合は，\verb#@#の後に変数名を出力する．\verb#n#という変数名であれば\verb#@n#になる．
+
+局所変数の場合は，\verb#%#の後にレジスタ番号を出力する．レジスタ番号が\verb#1#であれば\verb#%1#となる．
+
+定数（数値）の場合は，そのまま出力する．
+
+この関数は，\verb#Factor#および書き込むためのファイルポインタ\verb#fp#を受取って，そこに上記のように\verb#Factor#を書き出す処理を行う．
+
+これの定義をソースコード\ref{lst:ex4:llvm.c:displayFactor}に示す．
+\begin{lstlisting}[caption=displayFactor関数の定義,label=lst:ex4:llvm.c:displayFactor]
+/* Factorの表示 */
+void displayFactor(FILE *fp, Factor factor ){
+  switch(factor.type){
+    case GLOBAL_VAR:
+      fprintf(fp, "@%s", factor.vname);
+      break;
+    case LOCAL_VAR:
+      fprintf(fp, "%%%d", factor.val);
+      break;
+    case CONSTANT:
+      fprintf(fp, "%d", factor.val);
+      break;
+    default:
+      break;
+  }
+}
+\end{lstlisting}
+
+\subsubsection{factorpop関数およびfactorpush関数}
+\verb#factorpop#関数は，\verb#Factor#を\verb#fstack#から一つ取り出して返却する関数である．
+\verb#factorpush#関数は，引数として受けとった\verb#Factor#を\verb#fstack#に一つ追加するための関数である．
+追加した際はスタックポインタである\verb#top#をインクリメントして，取り出した際はデクリメントする．
+これの定義をソースコード\ref{lst:ex4:llvm.c:factorpopfactorpush}に示す．
+\begin{lstlisting}[caption=factorpop関数およびfactorpush関数の定義,label=lst:ex4:llvm.c:factorpopfactorpush]
+Factor factorpop() {
+  Factor tmp;
+  tmp = fstack.element[fstack.top];
+  fstack.top --;
+  return tmp;
+}
+
+void factorpush(Factor x) {
+  fstack.top ++;
+  fstack.element[fstack.top] = x;
+
+  return;
+}
+\end{lstlisting}
+
+\subsubsection{displayLlvmcodes関数}
+\verb#displayLlvmcodes#関数は，\verb#LLVMcode#を表示するための関数である．
+この関数は，\verb#LLVMcode#のポインタおよび書き込むためのファイルポインタ\verb#fp#を受取って，そこに上記のように\verb#LLVMcode#を書き出す処理を行う．
+LLVMコードは，種別によって表記方法が大きく異なるため，\verb#switch#構文で，それぞれの種別の場合分けを行っている．それぞれの場合分けの中で，LLVM文法のコードがファイルポインタに書き込まれるように実装した．
+また，ファイルポインタを引数として受け取るため，ファイルポインタを指定することで複数のファイルに書き込むことができる等の柔軟な処理が可能となっている．
+
+関数の最後で再帰的に自分自身を呼び出しているため，関数を一度呼び出すと線形リストの最後までコードが出力される．
+
+これの定義をソースコード\ref{lst:ex4:llvm.c:displayLlvmcodes}に示す．
+
+\begin{lstlisting}[caption=displayLlvmcodes関数の定義,label=lst:ex4:llvm.c:displayLlvmcodes]
+
+/* LLVMコードを表示する */
+void displayLlvmcodes(FILE *fp, LLVMcode *code) {
+  if (code == NULL) return; // ポインタがNULLの場合は終了する．
+  fprintf(fp, "  ");
+  switch (code->command){
+    case CommonGlobal:
+      displayFactor(fp, (code->args).common_global.retval );
+      fprintf(fp, " = common global i32 0, align 4\n");
+      break;
+    case Alloca:
+      displayFactor(fp, (code->args).alloca.retval );
+      fprintf(fp, " = alloca i32, align 4\n");
+      break;
+    case Store:
+      fprintf(fp, "store i32 ");
+      displayFactor(fp, (code->args).store.arg1 );
+      fprintf(fp, ", i32* ");
+      displayFactor(fp, (code->args).store.arg2 );
+      fprintf(fp, ", align 4\n");
+      break;
+    case Load:
+      displayFactor(fp, (code->args).load.retval );
+      fprintf(fp, " = load i32, i32* ");
+      displayFactor(fp, (code->args).load.arg1 );
+      fprintf(fp, ", align 4\n");
+      break;
+    case BrUncond:
+      fprintf(fp, "br label %%%d\n\n", (code->args).bruncond.arg1);
+      break;
+    case BrCond:
+      fprintf(fp, "br label i1 ");
+      displayFactor(fp, (code->args).brcond.arg1 );
+      fprintf(fp, ", label %%%d, label %%%d\n\n", (code->args).brcond.arg2, (code->args).brcond.arg3);
+      break;
+    case Label:
+      fprintf(fp, "; <label>:%d:\n", (code->args).label.l);
+      break;
+    case Add:
+      displayFactor(fp, (code->args).add.retval );
+      fprintf(fp, " = add nsw i32 ");
+      displayFactor(fp, (code->args).add.arg1 );
+      fprintf(fp, ", ");
+      displayFactor(fp, (code->args).add.arg2 );
+      fprintf(fp, ", align 4\n");
+      break;
+    case Sub:
+      displayFactor(fp, (code->args).sub.retval );
+      fprintf(fp, " = sub nsw i32 ");
+      displayFactor(fp, (code->args).sub.arg1 );
+      fprintf(fp, ", ");
+      displayFactor(fp, (code->args).sub.arg2 );
+      fprintf(fp, ", align 4\n");
+      break;
+    case Mul:
+      displayFactor(fp, (code->args).mul.retval );
+      fprintf(fp, " = mul nsw i32 ");
+      displayFactor(fp, (code->args).mul.arg1 );
+      fprintf(fp, ", ");
+      displayFactor(fp, (code->args).mul.arg2 );
+      fprintf(fp, ", align 4\n");
+      break;
+    case Div:
+      displayFactor(fp, (code->args).div.retval );
+      fprintf(fp, " = sdiv nsw i32 ");
+      displayFactor(fp, (code->args).div.arg1 );
+      fprintf(fp, ", ");
+      displayFactor(fp, (code->args).div.arg2 );
+      fprintf(fp, ", align 4\n");
+      break;
+    case Icmp:
+      displayFactor(fp, (code->args).icmp.retval );
+      fprintf(fp, " = icmp ");
+      switch ((code->args).icmp.type) {
+        case EQUAL:
+          fprintf(fp, "eq");break;
+        case NE:
+          fprintf(fp, "ne");break;
+        case SGT:
+          fprintf(fp, "sgt");break;
+        case SGE:
+          fprintf(fp, "sge");break;
+        case SLT:
+          fprintf(fp, "slt");break;
+        case SLE:
+          fprintf(fp, "sle");break;
+      }
+      fprintf(fp, " i32 ");
+      displayFactor(fp, (code->args).icmp.arg1 );
+      fprintf(fp, ", ");
+      displayFactor(fp, (code->args).icmp.arg2 );
+      fprintf(fp, ", align 4\n");
+      break;
+    case Ret:
+      fprintf(fp, "ret ");
+      displayFactor(fp, (code->args).ret.arg1 );
+      fprintf(fp, "\n");
+      break;
+    default:
+      break;
+  }
+  displayLlvmcodes(fp, code->next);
+}
+\end{lstlisting}
+
+\subsubsection{displayLlvmfundecl関数}
+\verb#displayLlvmfundecl#関数は，手続きを表示するための関数である．
+この関数は，手続き・関数を表す\verb#Fundecl#のポインタおよび書き込むためのファイルポインタ\verb#fp#を受取って，そこに上記のように\verb#Fundecl#を書き出す処理を行った．
+
+手続き・関数呼び出しでは，返り値の有無があるため返り値が存在する場合は，
+\verb#define i32 @関数名 ()#と表記される．実験4の時点ではmain関数のみがこれに該当する．
+一方返り値が存在しない場合は\verb#define void @関数名 ()#と表記される．
+これは任意の呼び出し処理で書き出される．
+
+その後，その目的コードの関数内に定義されたLLVMコードを表示するために\verb#displayLlvmcodes#が呼び出される．この関数が呼ばれると，関数内に定義された全てのLLVMコードが書き出される．
+その後関数を閉じて関数の最後で再帰的に自分自身を呼び出しているため，関数を一度呼び出すと線形リストの最後までコードが出力される．
+
+これの定義をソースコード\ref{lst:ex4:llvm.c:displayLlvmfundecl}に示す．
+
+\begin{lstlisting}[caption=displayLlvmfundecl関数の定義,label=lst:ex4:llvm.c:displayLlvmfundecl]
+/* 手続きを表示する */
+void displayLlvmfundecl(FILE *fp, Fundecl *decl ) {
+  if (decl == NULL) return;
+  fprintf(fp, "define ");
+
+  switch (decl->rettype) {
+    case VOID:
+      fprintf(fp, "void");break;
+    case INT32:
+      fprintf(fp, "i32");break;
+  }
+  fprintf(fp, " @%s #0() {\n", decl->fname);
+  displayLlvmcodes(fp, decl->codes);
+  fprintf(fp, "}\n");
+  if(decl->next != NULL) {
+    fprintf(fp, "\n");
+    displayLlvmfundecl(fp, decl->next);
+  }
+  return;
+}
+\end{lstlisting}
+
+
+\subsubsection{outputCode関数}
+\verb#outputCode#関数は，LLVMコードとして目的コードを出力する関数である．
+プログラムのパースが終わった時点でこの関数が呼ばれて，目的コードが出力されるように実装した．
+
+この関数では，まず\verb#outputfile#をファイルポインタとして，\verb#result.ll#を開く．
+もし開けない場合はエラーを出力してプログラムを終了する．
+
+開けた場合は，コードの先頭\verb#codehd#から\verb#displayLlvmcodes#関数を用いて出力する．
+\verb#codehd#は入力プログラムの大域変数定義を行う命令の線形リストを保持しているため，この関数を呼ぶことで，大域変数定義を行うLLVM命令の線形リストをファイルに書き込む．
+その後，関数の先頭\verb#declhd#から\verb#displayLlvmfundecl#関数を用いて，全ての関数を出力する．それぞれの関数の命令は，\verb#displayLlvmfundecl#関数内で出力されるので，呼び出しが終了した時点でファイルには目的コードが出力されている．
+したがって，ファイルポインタを閉じて終了する．
+
+これの定義をソースコード\ref{lst:ex4:llvm.c:outputCode}に示す．
+
+\begin{lstlisting}[caption=outputCode関数の定義,label=lst:ex4:llvm.c:outputCode]
+void outputCode () {
+
+  FILE *outputfile;
+  outputfile = fopen("result.ll", "w");
+  if (outputfile == NULL) {
+    fprintf(stderr, "unexpected error\n");
+    exit(1);
+  }
+
+  displayLlvmcodes(outputfile, codehd);
+  displayLlvmfundecl(outputfile, declhd);
+
+  fclose(outputfile);
+}
+\end{lstlisting}
+
+\subsubsection{pushLLVMcode関数}
+\verb#pushLLVMcode#関数は，\verb#LLVMcode#をコード末尾\verb#codetl#に連結する関数である．
+
+この関数は引数として\verb#LLVMcode#のポインタを受け取る．
+\verb#codetl#がNULLである場合は，末尾の関数(処理中の関数)内の命令として連結する．
+\verb#codetl#がNULLでない場合は，その次の命令としてポインタを連結する．
+その後，\verb#codetl#を受け取ったポインタで更新する．
+
+これの定義をソースコード\ref{lst:ex4:llvm.c:outputCode}に示す．
+
+\begin{lstlisting}[caption=pushLLVMcode関数の定義,label=lst:ex4:llvm.c:pushLLVMcode]
+void pushLLVMcode (LLVMcode *code) {
+  if (codetl == NULL){
+    if (decltl != NULL && decltl->codes == NULL) {
+      decltl->codes = code;
+    }
+  } else {
+    codetl->next = code;
+  }
+  codetl = code;
+}
+
+\end{lstlisting}
+
+\subsubsection{defineGlobalVar関数}
+\verb#defineGlobalVar#関数は，\verb#CommonGlobal#命令である\verb#LLVMcode#をメモリ確保および作成して，\verb#pushLLVMcode#関数を呼び出してリストに連結するプログラムである．
+
+この命令はコードの最初に追加される可能性があるため，\verb#codehd#がNULLの場合は，自分自身で更新する．
+
+この関数は引数として大域変数名を文字列ポインタとして受け取り，\verb#Factor#化して\verb#LLVMcode#として作成する．
+
+作成された\verb#LLVMcode#のポインタが返却される．
+
+これの定義をソースコード\ref{lst:ex4:llvm.c:defineGlobalVar}に示す．
+
+\begin{lstlisting}[caption=defineGlobalVar関数の定義,label=lst:ex4:llvm.c:defineGlobalVar]
+/* LLVM Common Global命令の作成 */
+LLVMcode *defineGlobalVar( char *var_name ) {
+  // fprintf(stderr, "DEFINE GLOBAL VARIABLE: %s\n", var_name);
+
+  LLVMcode *tmp;
+  Factor retval;
+  retval.type = GLOBAL_VAR;
+  strcpy(retval.vname, var_name);
+
+  tmp = (LLVMcode *)malloc(sizeof(LLVMcode));
+  tmp->next = NULL;
+  tmp->command = CommonGlobal;
+  (tmp->args).common_global.retval = retval;
+
+  if (codehd == NULL) {
+    codehd = tmp;
+  }
+  pushLLVMcode (tmp);
+  return tmp;
+}
+\end{lstlisting}
+
+\subsubsection{defineAlloca関数}
+\verb#defineAlloca#関数は，\verb#Alloca#命令である\verb#LLVMcode#をメモリ確保および作成して，\verb#pushLLVMcode#関数を呼び出してリストに連結するプログラムである．
+
+この関数は新しいレジスタを予約して，メモリを確保する\verb#Alloca#命令を定義する．
+新しいレジスタ\verb#cntr#から作成して，これを\verb#Factor#化して，\verb#LLVMcode#を作成する．
+
+作成された\verb#LLVMcode#のポインタが返却される．
+
+これの定義をソースコード\ref{lst:ex4:llvm.c:defineAlloca}に示す．
+
+\begin{lstlisting}[caption=defineAlloca関数の定義,label=lst:ex4:llvm.c:defineAlloca]
+/* LLVM Alloca命令の作成 */
+LLVMcode *defineAlloca() {
+  // fprintf(stderr, "DEFINE ALLOCA: %%%d\n", reg);
+
+  LLVMcode *tmp;
+  tmp = (LLVMcode *)malloc(sizeof(LLVMcode));
+  tmp->next = NULL;
+  tmp->command = Alloca;
+
+  Factor retval;
+  retval.type = LOCAL_VAR;
+  retval.val = cntr;
+  cntr++;
+  (tmp->args).alloca.retval = retval;
+
+  pushLLVMcode (tmp);
+
+  return tmp;
+}
+\end{lstlisting}
+
+\subsubsection{defineStore関数}
+\verb#defineStore#関数は，\verb#Store#命令である\verb#LLVMcode#をメモリ確保および作成して，\verb#pushLLVMcode#関数を呼び出してリストに連結するプログラムである．
+
+この関数は，代入する大域変数を\verb#arg1#，代入する定数またはレジスタ番号を\verb#arg2#として受取り，\verb#LLVMcode#を作成する．
+
+作成された\verb#LLVMcode#のポインタが返却される．
+
+これの定義をソースコード\ref{lst:ex4:llvm.c:defineStore}に示す．
+
+\begin{lstlisting}[caption=defineStore関数の定義,label=lst:ex4:llvm.c:defineStore]
+/* LLVM Store命令の作成 */
+LLVMcode *defineStore(Factor arg1, Factor arg2) {
+  // fprintf(stderr, "DEFINE STORE\n");
+
+  LLVMcode *tmp;
+  tmp = (LLVMcode *)malloc(sizeof(LLVMcode));
+  tmp->next = NULL;
+  tmp->command = Store;
+
+  (tmp->args).store.arg1 = arg1;
+  (tmp->args).store.arg2 = arg2;
+
+  pushLLVMcode (tmp);
+
+  return tmp;
+}
+\end{lstlisting}
+
+\subsubsection{defineLoad関数}
+\verb#defineLoad#関数は，\verb#Load#命令である\verb#LLVMcode#をメモリ確保および作成して，\verb#pushLLVMcode#関数を呼び出してリストに連結するプログラムである．
+
+この関数は，参照する大域変数を\verb#arg1#として受取り，参照した値を格納するために，新しくレジスタを割り当てる．
+割り当てるレジスタ番号は\verb#cntr#を使用し，これを\verb#Factor#化して，\verb#LLVMcode#を作成する．
+
+作成された\verb#LLVMcode#のポインタが返却される．
+
+これの定義をソースコード\ref{lst:ex4:llvm.c:defineLoad}に示す．
+
+\begin{lstlisting}[caption=defineLoad関数の定義,label=lst:ex4:llvm.c:defineLoad]
+/* LLVM Load命令の作成 */
+LLVMcode *defineLoad(Factor arg1) {
+  // fprintf(stderr, "DEFINE LOAD\n");
+
+  LLVMcode *tmp;
+  tmp = (LLVMcode *)malloc(sizeof(LLVMcode));
+  tmp->next = NULL;
+  tmp->command = Load;
+
+  Factor retval;
+  retval.type = LOCAL_VAR;
+  retval.val = cntr;
+  cntr++;
+
+  (tmp->args).load.arg1 = arg1;
+  (tmp->args).load.retval = retval;
+
+  factorpush(retval);
+
+  pushLLVMcode (tmp);
+
+  return tmp;
+}
+\end{lstlisting}
+
+\subsubsection{defineAdd関数，defineSub関数，defineMul関数およびdefineDiv関数}
+\verb#defineAdd#関数は，\verb#Add#命令である\verb#LLVMcode#をメモリ確保および作成して，\verb#pushLLVMcode#関数を呼び出してリストに連結するプログラムである．
+同様にして，\verb#defineSub#関数は，\verb#Sub#命令である\verb#LLVMcode#をメモリ確保および作成し，\verb#defineMul#関数は，\verb#Mul#命令である\verb#LLVMcode#をメモリ確保および作成し，\verb#defineDiv#関数は，\verb#Sdiv#命令である\verb#LLVMcode#をメモリ確保および作成する．
+
+この関数は，加算(または減算，乗算，除算)を行う2つの\verb#Factor#を\verb#arg1#および\verb#arg2#として受取り，計算した値を格納するために，新しくレジスタ\verb#retval#を割り当てる．
+割り当てるレジスタ番号は\verb#cntr#を使用し，これを\verb#Factor#化して，\verb#LLVMcode#を作成する．
+
+作成された\verb#LLVMcode#のポインタが返却される．
+
+これの定義をソースコード\ref{lst:ex4:llvm.c:defineAdddefineSubdefineMuldefineDiv}に示す．
+
+\begin{lstlisting}[caption=defineAdd関数，defineSub関数，defineMul関数およびdefineDiv関数の定義,label=lst:ex4:llvm.c:defineAdddefineSubdefineMuldefineDiv]
+/* LLVM Add命令の作成 */
+LLVMcode *defineAdd(Factor arg1, Factor arg2) {
+  // fprintf(stderr, "DEFINE ADD\n");
+
+  LLVMcode *tmp;
+  tmp = (LLVMcode *)malloc(sizeof(LLVMcode));
+  tmp->next = NULL;
+  tmp->command = Add;
+
+  Factor retval;
+  retval.type = LOCAL_VAR;
+  retval.val = cntr;
+  cntr++;
+
+  (tmp->args).add.arg1 = arg1;
+  (tmp->args).add.arg2 = arg2;
+  (tmp->args).add.retval = retval;
+
+  factorpush(retval);
+
+  pushLLVMcode (tmp);
+
+  return tmp;
+}
+
+
+/* LLVM Sub命令の作成 */
+LLVMcode *defineSub(Factor arg1, Factor arg2) {
+  // fprintf(stderr, "DEFINE SUB\n");
+
+  LLVMcode *tmp;
+  tmp = (LLVMcode *)malloc(sizeof(LLVMcode));
+  tmp->next = NULL;
+  tmp->command = Sub;
+
+  Factor retval;
+  retval.type = LOCAL_VAR;
+  retval.val = cntr;
+  cntr++;
+
+  (tmp->args).sub.arg1 = arg1;
+  (tmp->args).sub.arg2 = arg2;
+  (tmp->args).sub.retval = retval;
+
+  factorpush(retval);
+
+  pushLLVMcode (tmp);
+
+  return tmp;
+}
+
+/* LLVM Mul命令の作成 */
+LLVMcode *defineMul(Factor arg1, Factor arg2) {
+  // fprintf(stderr, "DEFINE SUB\n");
+
+  LLVMcode *tmp;
+  tmp = (LLVMcode *)malloc(sizeof(LLVMcode));
+  tmp->next = NULL;
+  tmp->command = Mul;
+
+  Factor retval;
+  retval.type = LOCAL_VAR;
+  retval.val = cntr;
+  cntr++;
+
+  (tmp->args).mul.arg1 = arg1;
+  (tmp->args).mul.arg2 = arg2;
+  (tmp->args).mul.retval = retval;
+
+  factorpush(retval);
+
+  pushLLVMcode (tmp);
+
+  return tmp;
+}
+
+/* LLVM Div命令の作成 */
+LLVMcode *defineDiv(Factor arg1, Factor arg2) {
+  // fprintf(stderr, "DEFINE SUB\n");
+
+  LLVMcode *tmp;
+  tmp = (LLVMcode *)malloc(sizeof(LLVMcode));
+  tmp->next = NULL;
+  tmp->command = Div;
+
+  Factor retval;
+  retval.type = LOCAL_VAR;
+  retval.val = cntr;
+  cntr++;
+
+  (tmp->args).div.arg1 = arg1;
+  (tmp->args).div.arg2 = arg2;
+  (tmp->args).div.retval = retval;
+
+  factorpush(retval);
+
+  pushLLVMcode (tmp);
+
+  return tmp;
+}
+
+\end{lstlisting}
+
+\subsubsection{defineRet関数}
+\verb#defineRet#関数は，\verb#Ret#命令である\verb#LLVMcode#をメモリ確保および作成して，\verb#pushLLVMcode#関数を呼び出してリストに連結するプログラムである．
+
+この関数は，関数の返り値であるレジスタ番号1の値を返す\verb#LLVMcode#を作成する．
+作成された\verb#LLVMcode#のポインタが返却される．
+
+これの定義をソースコード\ref{lst:ex4:llvm.c:defineRet}に示す．
+
+\begin{lstlisting}[caption=defineRet関数の定義,label=lst:ex4:llvm.c:defineRet]
+/* LLVM Ret命令の作成 */
+LLVMcode *defineRet() {
+
+  LLVMcode *tmp;
+  tmp = (LLVMcode *)malloc(sizeof(LLVMcode));
+  tmp->next = NULL;
+  tmp->command = Ret;
+
+  Factor arg1;
+  arg1.type = LOCAL_VAR;
+  arg1.val = 1;
+
+  (tmp->args).ret.arg1 = arg1;
+
+  pushLLVMcode (tmp);
+
+  return NULL;
+}
+\end{lstlisting}
+
+\subsubsection{pushNumber関数}
+\verb#pushNumber#関数は，\verb#int#型の数値を受取，\verb#Factor#化してスタックに追加する．パース中に数値が解析された時に呼び出される．
+
+これの定義をソースコード\ref{lst:ex4:llvm.c:pushNumber}に示す．
+
+\begin{lstlisting}[caption=pushNumber関数の定義,label=lst:ex4:llvm.c:pushNumber]
+/* 数字をFactorとして追加 */
+void pushNumber(int number) {
+  // fprintf(stderr, "PUSH NUMBER %d\n", number);
+
+  Factor tmp;
+  tmp.type = CONSTANT;
+  tmp.val = number;
+
+  factorpush(tmp);
+}
+\end{lstlisting}
+
+
+\subsubsection{pushVariable関数}
+\verb#pushVariable#関数は，変数名，変数のタイプ，変数の値を受取，\verb#Factor#化してスタックに追加する．パース中に変数が解析された時に呼び出される．
+
+これの定義をソースコード\ref{lst:ex4:llvm.c:pushVariable}に示す．
+
+\begin{lstlisting}[caption=pushVariable関数の定義,label=lst:ex4:llvm.c:pushVariable]
+/* 変数をFactorとして追加 */
+void pushVariable(char *var_name, Scope type, int val) {
+  // fprintf(stderr, "PUSH VARIABLE %s(%d)\n", var_name, type);
+
+  Factor tmp;
+  tmp.type = type;
+  tmp.val = val;
+  strcpy(tmp.vname, var_name);
+
+  factorpush(tmp);
+
+}
+\end{lstlisting}
+
+\subsubsection{doMainProcedure関数}
+\verb#doMainProcedure#関数は，main関数が定義された時点で呼び出される関数であり，main手続きを\verb#Fundecl#として作成し，\verb#codes#内に\verb#Alloca#および\verb#Store#命令を作成する．この2つの命令はmain命令の返り値を実現するために必須の命令である．
+
+関数が定義されると，\verb#codetl#をNULLにする．これは関数内の命令が，関数外の命令リストに追加されないようにするためである．関数内の命令は\verb#codes#からリストにアクセスするため，\verb#codetl#がNULLでないと，二重にアクセスできてしまい，不適切な目的コードが出力されてしまう．
+また関数内でレジスタ番号は再利用されるため，\verb#cntr#を1に初期化する．
+
+\verb#Fundecl#をメモリ確保して，main関数として作成する．そして作成した関数を線形リストに追加している．
+その後，\verb#defineAlloca#関数および\verb#defineStore#関数を呼び出して，命令を関数内に作成している．
+
+これの定義をソースコード\ref{lst:ex4:llvm.c:doMainProcedure}に示す．
+
+\begin{lstlisting}[caption=doMainProcedure関数の定義,label=lst:ex4:llvm.c:doMainProcedure]
+void doMainProcedure() {
+  // fprintf(stderr, "DEFINE PROCEDURE: %s\n", proc_name);
+  codetl = NULL;
+  cntr = 1;
+
+  Fundecl *tmp;
+  tmp = (Fundecl *)malloc(sizeof(Fundecl));
+  strcpy(tmp->fname, "main");
+  tmp->rettype = INT32;
+
+  if (decltl == NULL){
+    if (declhd == NULL) {
+      declhd = tmp;
+    }
+    decltl = tmp;
+  } else {
+    decltl->next = tmp;
+    decltl = tmp;
+  }
+
+  LLVMcode *alloca_statement = defineAlloca();
+
+  Factor arg1, arg2;
+
+  arg1.type = CONSTANT;
+  arg1.val = 0;
+
+  arg2.type = LOCAL_VAR;
+  arg2.val = cntr;
+  cntr ++;
+
+
+  LLVMcode *store_statement = defineStore(arg1, arg2);
+
+}
+\end{lstlisting}
+
+最後に，これらの関数を\verb#parser.y#からどのように呼び出しているか説明する．
+
+\subsubsection{llvm.cの変数の参照}
+\verb#extern#を用いて，\verb#llvm.c#の変数を外部参照して，\verb#parser.y#内で使用できるようにした．外部参照しているのみなので，実際の変数の機能については省略する．
+
+これをソースコード\ref{lst:ex4:parser.y:variables}に示す．
+
+\begin{lstlisting}[caption=変数の外部参照,label=lst:ex4:parser.y:variables]
+#include "llvm.h"
+
+extern int yylineno;
+extern char *yytext;
+
+extern Factorstack fstack; /* 整数もしくはレジスタ番号を保持するスタック */
+
+extern LLVMcode *codehd; /* 命令列の先頭のアドレスを保持するポインタ */
+extern LLVMcode *codetl; /* 命令列の末尾のアドレスを保持するポインタ */
+extern unsigned int cntr;
+
+/* 関数定義の線形リストの先頭の要素のアドレスを保持するポインタ */
+extern Fundecl *declhd;
+/* 関数定義の線形リストの末尾の要素のアドレスを保持するポインタ */
+extern Fundecl *decltl;
+\end{lstlisting}
+
+\subsubsection{構文規則内での呼び出し}
+
+\verb#parser.y#の構文規則内で，\verb#llvm.c#の関数を呼び出しているパートや，必要な処理を行っている部分を抜粋して説明する．
+
+構文解析を始める時点で，\verb#fstack.top#を0に初期化し，構文解析を終わる時点で,
+\verb#outputCode#関数を呼び出した．これは\verb#program#ルールに記載した．
+
+\verb#outblock#ルールでは，main関数が定義される時点で\verb#doMainProcedure#関数を呼び出し，関数を終了する時点で\verb#defineRet#関数で返り値を取得するようにした．
+
+\verb#assignment_statement#ルールでは，\verb#fstack#から代入する変数および代入する値をpopし，\verb#store#命令を作成する関数を呼び出した．
+
+\verb#expression#ルールでは，\verb#fstack#から２つの\verb#Factor#をpopし，\verb#add#命令を作成する関数および\verb#sub#命令を作成する関数を呼び出した．
+
+\verb#term#ルールでは，\verb#fstack#から２つの\verb#Factor#をpopし，\verb#mul#命令を作成する関数および\verb#div#命令を作成する関数を呼び出した．
+
+\verb#var_name#ルールでは，変数が参照された際に，グローバル変数であれば\verb#load#命令を作成するようにした．そして，\verb#Factor#をpopしたため，\verb#Factor#をpushすることで，正しくつじつまを合わせている．
+なお\verb#lookup#関数が呼ばれると，\verb#Factor#がpushされるようになっているため，この実装で正しく動作する．
+
+これらをソースコード\ref{lst:ex4:parser.y:rules}に示す．
+
+\begin{lstlisting}[caption=構文規則部の処理,label=lst:ex4:parser.y:rules]
+program
+        : {
+            fstack.top = 0;
+          } PROGRAM IDENT SEMICOLON outblock PERIOD { outputCode(); }
+        ;
+
+outblock
+        : var_decl_part subprog_decl_part { doMainProcedure(); } statement { defineRet();delete(); }
+        ;
+
+...省略...
+
+proc_decl
+        : PROCEDURE proc_name SEMICOLON inblock { delete(); }
+        ;
+
+proc_name
+        : IDENT { insert($1, PROC_NAME); }
+        ;
+
+...省略...
+
+assignment_statement
+        : IDENT { lookup($1); } ASSIGN expression {
+            Factor arg1, arg2;
+            arg1 = factorpop();
+            arg2 = factorpop();
+            defineStore(arg1, arg2);
+          }
+        ;
+
+... 省略 ...
+
+expression
+        : term
+        | PLUS term
+        | MINUS term
+        | expression PLUS term {
+            Factor arg1, arg2;
+            arg2 = factorpop();
+            arg1 = factorpop();
+
+            defineAdd(arg1, arg2);
+          }
+        | expression MINUS term {
+            Factor arg1, arg2;
+            arg2 = factorpop();
+            arg1 = factorpop();
+
+            defineSub(arg1, arg2);
+          }
+        ;
+
+term
+        : factor
+        | term MULT factor {
+            Factor arg1, arg2;
+            arg2 = factorpop();
+            arg1 = factorpop();
+
+            defineMul(arg1, arg2);
+          }
+        | term DIV factor {
+            Factor arg1, arg2;
+            arg2 = factorpop();
+            arg1 = factorpop();
+
+            defineDiv(arg1, arg2);
+          }
+        ;
+
+factor
+        : var_name
+        | NUMBER { pushNumber($1); }
+        | LPAREN expression RPAREN
+        ;
+
+var_name
+        : IDENT{ lookup($1);
+            Factor arg1;
+            arg1 = factorpop();
+
+            if (arg1.type == GLOBAL_VAR) defineLoad(arg1);
+            else factorpush(arg1);
+          }
+        ;
+
+arg_list
+        : expression
+        | arg_list COMMA expression
+        ;
+
+id_list
+        : IDENT { insert($1, UNDEFINED_VAR); }
+        | id_list COMMA IDENT { insert($3, UNDEFINED_VAR); }
+\end{lstlisting}
+
+\verb#llvm.c#および\verb#llvm.h#を追加したので，\verb#Makefile#を次のように修正した．
+\begin{lstlisting}[caption=Makefile,label=lst:ex4:Makefile]
+CC = cc
+LEX = lex
+YACC = yacc -d
+
+parser: y.tab.c lex.yy.c symbol_table.c symbol_table.h llvm.h llvm.c
+	$(CC) y.tab.c lex.yy.c llvm.c symbol_table.c -ll -o parser
+
+lex.yy.c: scanner.l
+	$(LEX) scanner.l
+
+scanner: lex.yy.c
+	$(CC) lex.yy.c -ll -o scanner
+
+y.tab.c: parser.y
+	$(YACC) parser.y
+
+clean:
+	rm -rf *.o
+\end{lstlisting}
+
+上記によって四則演算が正しく実行できるように実装できたので，\verb#Make#コマンドを用いてソースコードのコンパイルを行った．
+そして生成された\verb#parser#プログラムを用いて，サンプルプログラムとして実験当初に与えられたプログラムをコンパイルした．
+サンプルプログラムをソースコード\ref{lst:ex4:ex1.p}に示す．
+このプログラムは，大域変数としてx,y,zを定義し，xに12，yに20を代入してから，zにzとyの加算結果を代入するプログラムである．
+
+\begin{lstlisting}[caption=ex1.p,label=lst:ex4:ex1.p]
+program EX1;
+var x, y, z;
+begin
+   x := 12;
+   y := 20;
+   z := x + y
+end.
+\end{lstlisting}
+
 \subsection{実験結果}
+
+
 
 \subsection{考察}
 
