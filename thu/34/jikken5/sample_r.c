@@ -1,4 +1,5 @@
 #include <stdio.h>
 int main(){
-  printf("%d\n", 100);
+  int x;
+  scanf("%d", &x);
 }
