@@ -19,6 +19,8 @@ extern Factorstack fstack; /* 整数もしくはレジスタ番号を保持す�
 extern LLVMcode *codehd; /* 命令列の先頭のアドレスを保持するポインタ */
 extern LLVMcode *codetl; /* 命令列の末尾のアドレスを保持するポインタ */
 extern unsigned int cntr;
+extern unsigned int useRead;
+extern unsigned int useWrite;
 
 /* 関数定義の線形リストの先頭の要素のアドレスを保持するポインタ */
 extern Fundecl *declhd;
@@ -55,11 +57,13 @@ program
         : {
             fstack.top = 0;
             lstack.top = 0;
+            useRead = 0;
+            useWrite = 0;
           } PROGRAM IDENT SEMICOLON outblock PERIOD { outputCode(); }
         ;
 
 outblock
-        : var_decl_part subprog_decl_part { doMainProcedure(); } statement { defineRet();delete(); }
+        : var_decl_part subprog_decl_part { doMainProcedure(); } statement { defineRet(INT32);delete(); }
         ;
 
 var_decl_part
@@ -91,7 +95,7 @@ subprog_decl
         ;
 
 proc_decl
-        : PROCEDURE proc_name SEMICOLON inblock { delete(); }
+        : PROCEDURE proc_name SEMICOLON inblock { defineRet(VOID);delete(); }
         ;
 
 proc_name
@@ -206,19 +210,19 @@ for_statement
             lookup($2);
 
             Factor arg1, arg2;
-            arg1 = factorpop();
             arg2 = factorpop();
+            arg1 = factorpop();
 
             defineStore(arg1, arg2);
 
             lsyntax.args.For.br1 = defineBr(1);
 
-            lsyntax.args.For.var = arg1;
+            lsyntax.args.For.var = arg2;
 
             lsyntax.args.For.label1 = defineLabel()->args.label.l;
             lsyntax.args.For.br1->args.bruncond.arg1 = lsyntax.args.For.label1;
 
-            defineLoad(arg1);
+            defineLoad(arg2);
 
             pushLabelSyntax(lsyntax);
           } TO expression {
@@ -248,7 +252,7 @@ for_statement
 
             defineAdd(arg1, arg2);
 
-            defineStore(lsyntax.args.For.var, factorpop());
+            defineStore(factorpop(), lsyntax.args.For.var);
 
             defineBr(lsyntax.args.For.label1);
             lsyntax.args.For.br2->args.brcond.arg3 = defineLabel()->args.label.l;
@@ -260,7 +264,12 @@ proc_call_statement
         ;
 
 proc_call_name
-        : IDENT{ lookup($1); }
+        : IDENT{
+            lookup($1);
+            Factor arg1;
+            arg1 = factorpop();
+            defineCall(arg1);
+          }
         ;
 
 block_statement
@@ -269,13 +278,20 @@ block_statement
 
 read_statement
         : READ LPAREN IDENT RPAREN {
+            useRead = 1;
             lookup($3);
-            defineAlloca();
+            defineScanf();
           }
         ;
 
 write_statement
-        : WRITE LPAREN IDENT RPAREN { lookup($3); }
+        : WRITE LPAREN expression RPAREN {
+            useWrite = 1;
+
+            Factor arg1;
+            arg1 = factorpop();
+            definePrintf(arg1);
+          }
         ;
 
 null_statement
@@ -299,7 +315,7 @@ condition
             Factor arg1, arg2;
             arg2 = factorpop();
             arg1 = factorpop();
-            defineIcmp(SLE, arg1, arg2);
+            defineIcmp(SLT, arg1, arg2);
           }
         | expression LE expression {
             Factor arg1, arg2;
@@ -371,6 +387,7 @@ var_name
             arg1 = factorpop();
 
             if (arg1.type == GLOBAL_VAR) defineLoad(arg1);
+            else if (arg1.type == LOCAL_VAR) defineLoad(arg1);
             else factorpush(arg1);
           }
         ;

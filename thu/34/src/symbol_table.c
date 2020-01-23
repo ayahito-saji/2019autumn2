@@ -42,7 +42,6 @@ void insert(char *vn, Scope scope)
       symbol_table[symbol_table_length].scope = LOCAL_VAR;
       symbol_table[symbol_table_length].reg = cntr;
       defineAlloca(cntr);
-      cntr ++;
     } else {
       symbol_table[symbol_table_length].scope = GLOBAL_VAR;
       symbol_table[symbol_table_length].reg = 0;

@@ -7,5 +7,6 @@ begin
     begin
         sum := sum + n;
         n := n - 1
-    end
+    end;
+    write(sum)
 end.

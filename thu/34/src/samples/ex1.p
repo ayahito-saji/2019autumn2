@@ -3,5 +3,6 @@ var x, y, z;
 begin
    x := 12;
    y := 20;
-   z := x + y
+   z := x + y;
+   write(z)
 end.

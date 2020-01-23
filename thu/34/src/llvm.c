@@ -8,7 +8,10 @@ Factorstack fstack; /* 整数もしくはレジスタ番号を保持するスタ
 
 LLVMcode *codehd = NULL; /* 命令列の先頭のアドレスを保持するポインタ */
 LLVMcode *codetl = NULL; /* 命令列の末尾のアドレスを保持するポインタ */
+
 unsigned int cntr = 0;
+unsigned int useRead = 0;
+unsigned int useWrite = 0;
 
 /* 関数定義の線形リストの先頭の要素のアドレスを保持するポインタ */
 Fundecl *declhd = NULL;
@@ -53,6 +56,9 @@ void displayFactor(FILE *fp, Factor factor ){
     case CONSTANT:
       fprintf(fp, "%d", factor.val);
       break;
+    case PROC_NAME:
+      fprintf(fp, "@%s", factor.vname);
+      break;
     default:
       break;
   }
@@ -81,7 +87,6 @@ void factorpush(Factor x) {
 /* LLVMコードを表示する */
 void displayLlvmcodes(FILE *fp, LLVMcode *code) {
   if (code == NULL) return;
-  fprintf(fp, "  ");
   switch (code->command){
     case CommonGlobal:
       displayFactor(fp, (code->args).common_global.retval );
@@ -108,7 +113,7 @@ void displayLlvmcodes(FILE *fp, LLVMcode *code) {
       fprintf(fp, "br label %%%d\n\n", (code->args).bruncond.arg1);
       break;
     case BrCond:
-      fprintf(fp, "br label i1 ");
+      fprintf(fp, "br i1 ");
       displayFactor(fp, (code->args).brcond.arg1 );
       fprintf(fp, ", label %%%d, label %%%d\n\n", (code->args).brcond.arg2, (code->args).brcond.arg3);
       break;
@@ -141,7 +146,7 @@ void displayLlvmcodes(FILE *fp, LLVMcode *code) {
       break;
     case Div:
       displayFactor(fp, (code->args).div.retval );
-      fprintf(fp, " = sdiv nsw i32 ");
+      fprintf(fp, " = sdiv i32 ");
       displayFactor(fp, (code->args).div.arg1 );
       fprintf(fp, ", ");
       displayFactor(fp, (code->args).div.arg2 );
@@ -171,7 +176,34 @@ void displayLlvmcodes(FILE *fp, LLVMcode *code) {
       fprintf(fp, "\n");
       break;
     case Ret:
-      fprintf(fp, "ret i32 0\n");
+      switch ((code->args).ret.type) {
+        case INT32:
+          fprintf(fp, "ret i32 ");
+          displayFactor(fp, (code->args).ret.arg1 );
+          fprintf(fp, "\n");
+          break;
+        case VOID:
+          fprintf(fp, "ret void\n");
+          break;
+      }
+      
+      break;
+    case Printf:
+      displayFactor(fp, (code->args).printf.retval );
+      fprintf(fp, " = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @.str, i64 0, i64 0), i32 ");
+      displayFactor(fp, (code->args).printf.arg1 );
+      fprintf(fp, ")\n");
+      break;
+    case Scanf:
+      displayFactor(fp, (code->args).scanf.retval );
+      fprintf(fp, " = call i32 (i8*, ...) @__isoc99_scanf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @.str, i64 0, i64 0), i32* ");
+      displayFactor(fp, (code->args).scanf.arg1 );
+      fprintf(fp, ")\n");
+      break;
+    case Call:
+      fprintf(fp, "call void ");
+      displayFactor(fp, (code->args).call.arg1 );
+      fprintf(fp, "()\n");
       break;
     default:
       break;
@@ -211,6 +243,14 @@ void outputCode () {
   }
 
   displayLlvmcodes(outputfile, codehd);
+
+  if (useRead || useWrite)
+    fprintf(outputfile, "@.str = private unnamed_addr constant [3 x i8] c\"%%d\\00\", align 1\n");
+  if (useRead)
+    fprintf(outputfile, "declare dso_local i32 @__isoc99_scanf(i8*, ...)\n");
+  if (useWrite)
+    fprintf(outputfile, "declare dso_local i32 @printf(i8*, ...)\n");
+
   displayLlvmfundecl(outputfile, declhd);
 
   fclose(outputfile);
@@ -262,6 +302,8 @@ LLVMcode *defineAlloca() {
   retval.val = cntr;
   cntr++;
   (tmp->args).alloca.retval = retval;
+
+  factorpush(retval);
 
   pushLLVMcode (tmp);
 
@@ -484,22 +526,79 @@ LLVMcode *defineIcmp(Cmptype type, Factor arg1, Factor arg2) {
   return tmp;
 }
 
-LLVMcode *defineRet() {
+/* LLVM Ret命令の作成 */
+LLVMcode *defineRet(ReturnType type) {
 
   LLVMcode *tmp;
   tmp = (LLVMcode *)malloc(sizeof(LLVMcode));
   tmp->next = NULL;
   tmp->command = Ret;
 
-  Factor arg1;
-  arg1.type = LOCAL_VAR;
-  arg1.val = 1;
-
-  (tmp->args).ret.arg1 = arg1;
+  (tmp->args).ret.type = type;
+  if (type == INT32) {
+    Factor arg1;
+    arg1.type = CONSTANT;
+    arg1.val = 0;
+    (tmp->args).ret.arg1 = arg1;
+  }
 
   pushLLVMcode (tmp);
 
-  return NULL;
+  return tmp;
+}
+
+/* LLVM Printf命令の作成 */
+LLVMcode *definePrintf(Factor arg1) {
+  LLVMcode *tmp;
+  tmp = (LLVMcode *)malloc(sizeof(LLVMcode));
+  tmp->next = NULL;
+  tmp->command = Printf;
+
+  Factor retval;
+  retval.type = LOCAL_VAR;
+  retval.val = cntr;
+  cntr++;
+
+  (tmp->args).printf.retval = retval;
+  (tmp->args).printf.arg1 = arg1;
+
+  pushLLVMcode (tmp);
+
+  return tmp;
+}
+
+/* LLVM Scanf命令の作成 */
+LLVMcode *defineScanf(){
+  LLVMcode *tmp;
+  tmp = (LLVMcode *)malloc(sizeof(LLVMcode));
+  tmp->next = NULL;
+  tmp->command = Scanf;
+
+  Factor retval;
+  retval.type = LOCAL_VAR;
+  retval.val = cntr;
+  cntr++;
+
+  (tmp->args).printf.retval = retval;
+  (tmp->args).printf.arg1 = factorpop();
+
+  pushLLVMcode (tmp);
+
+  return tmp;
+}
+
+/* LLVM Call命令の作成 */
+LLVMcode *defineCall(Factor arg1){
+  LLVMcode *tmp;
+  tmp = (LLVMcode *)malloc(sizeof(LLVMcode));
+  tmp->next = NULL;
+  tmp->command = Call;
+
+  (tmp->args).call.arg1 = arg1;
+
+  pushLLVMcode (tmp);
+
+  return tmp;
 }
 
 /* 数字をFactorとして追加 */
@@ -572,14 +671,11 @@ void doMainProcedure() {
 
   LLVMcode *alloca_statement = defineAlloca();
 
-  Factor arg1, arg2;
+  Factor arg1;
 
   arg1.type = CONSTANT;
   arg1.val = 0;
 
-  arg2.type = LOCAL_VAR;
-  arg2.val = 1;
-
-  LLVMcode *store_statement = defineStore(arg1, arg2);
+  LLVMcode *store_statement = defineStore(arg1, factorpop());
 
 }

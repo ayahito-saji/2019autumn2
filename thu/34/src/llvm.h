@@ -15,7 +15,10 @@ typedef enum {
   Div,      /* div    */
   Icmp,     /* icmp   */
   Ret,      /* ret    */
-  CommonGlobal /* common_global */ /* 実験4 追加 */
+  CommonGlobal, /* common_global */ /* 実験4 追加 */
+  Printf,   /* printf */
+  Scanf,    /* scanf  */
+  Call      /* call   */
 } LLVMcommand;
 
 /* 比較演算子の種類 */
@@ -87,8 +90,20 @@ typedef struct llvmcode {
       Cmptype type;  Factor arg1;  Factor arg2;  Factor retval;
     } icmp;
     struct { /* ret    */
+      ReturnType type;
       Factor arg1;
     } ret;
+    struct { /* printf */
+      Factor retval;
+      Factor arg1;
+    } printf;
+    struct { /* scanf */
+      Factor retval;
+      Factor arg1;
+    } scanf;
+    struct { /* call */
+      Factor arg1;
+    } call;
   } args;
   /* 次の命令へのポインタ */
   struct llvmcode *next;
@@ -166,7 +181,10 @@ LLVMcode *defineBr(int arg1);
 LLVMcode *defineBrCondition(int arg2, int arg3);
 LLVMcode *defineLabel();
 LLVMcode *defineIcmp(Cmptype type, Factor arg1, Factor arg2);
-LLVMcode *defineRet();
+LLVMcode *defineRet(ReturnType type);
+LLVMcode *definePrintf(Factor arg1);
+LLVMcode *defineScanf();
+LLVMcode *defineCall(Factor arg1);
 
 void doProcedure(char *proc_name);
 void doMainProcedure();
