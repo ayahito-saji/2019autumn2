@@ -186,7 +186,7 @@ void displayLlvmcodes(FILE *fp, LLVMcode *code) {
           fprintf(fp, "ret void\n");
           break;
       }
-      
+
       break;
     case Printf:
       displayFactor(fp, (code->args).printf.retval );
@@ -252,7 +252,7 @@ void outputCode () {
     fprintf(outputfile, "@.str.write = private unnamed_addr constant [4 x i8] c\"%%d\\0A\\00\", align 1\n");
     fprintf(outputfile, "declare dso_local i32 @printf(i8*, ...)\n");
   }
-
+  fprintf(outputfile, "\n");
   displayLlvmfundecl(outputfile, declhd);
 
   fclose(outputfile);

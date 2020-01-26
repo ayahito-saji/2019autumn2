@@ -96,6 +96,7 @@ subprog_decl
 
 proc_decl
         : PROCEDURE proc_name SEMICOLON inblock { defineRet(VOID);delete(); }
+        | PROCEDURE proc_name LPAREN id_list RPAREN SEMICOLON inblock { defineRet(VOID);delete(); }
         ;
 
 proc_name
@@ -260,16 +261,20 @@ for_statement
         ;
 
 proc_call_statement
-        : proc_call_name
-        ;
-
-proc_call_name
-        : IDENT{
-            lookup($1);
+        : proc_call_name {
             Factor arg1;
             arg1 = factorpop();
             defineCall(arg1);
           }
+        | proc_call_name LPAREN arg_list RPAREN {
+            Factor arg1;
+            arg1 = factorpop();
+            defineCall(arg1);
+          }
+        ;
+
+proc_call_name
+        : IDENT{ lookup($1); }
         ;
 
 block_statement
