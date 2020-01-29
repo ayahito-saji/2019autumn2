@@ -1143,7 +1143,7 @@ typedef enum {
 \end{lstlisting}
 
 実験5では手続きのみ用いるため手続きの返り値は存在しない．一方LLVMでは関数として記述するためmain関数はintの返り値を持ち，それ以外の手続きに相当する関数はvoidの返り値を持っている．
-そこで，LLVMの関数を定義する構造体の返り値の型を列挙型で定義する．
+そこで，LLVMの関数を定義する構造体の返り値の型を列挙型で定義する．ソースコード\ref{lst:ex5:llvm.h:cmptype}に示す．
 
 \begin{lstlisting}[caption=LLVMコマンドを表す列挙型LLVMcommand,label=lst:ex5:llvm.h:cmptype]
 typedef enum {
@@ -1152,8 +1152,1023 @@ typedef enum {
 } ReturnType;
 \end{lstlisting}
 
+\subsubsection {llvmcodeの追加定義}
+
+実験4でLLVM命令を命令ごとに構造体として定義したが，実験5では比較，標準入力，標準出力，手続き呼び出し命令を追加実装した．ソースコード\ref{lst:ex5:llvm.h:llvmcode}に示す．
+
+\begin{lstlisting}[caption=LLVMコードの追加実装,label=lst:ex5:llvm.h:llvmcode]
+typedef struct llvmcode {
+  LLVMcommand command; /* 命令名 */
+  union { /* 命令の引数 */
+    struct { /* common_global */
+      Factor retval;
+    } common_global;
+    struct { /* alloca */
+      Factor retval;
+    } alloca;
+    struct { /* store  */
+      Factor arg1;  Factor arg2;
+    } store;
+    struct { /* load   */
+      Factor arg1;  Factor retval;
+    } load;
+    struct { /* br     */
+      int arg1;
+    } bruncond;
+    struct { /* brc    */
+      Factor arg1;  int arg2;  int arg3;
+    } brcond;
+    struct { /* label  */
+      int l;
+    } label;
+    struct { /* add    */
+      Factor arg1;  Factor arg2;  Factor retval;
+    } add;
+    struct { /* sub    */
+      Factor arg1;  Factor arg2;  Factor retval;
+    } sub;
+    struct { /* mul    */
+      Factor arg1;  Factor arg2;  Factor retval;
+    } mul;
+    struct { /* div    */
+      Factor arg1;  Factor arg2;  Factor retval;
+    } div;
+    struct { /* icmp   */
+      Cmptype type;  Factor arg1;  Factor arg2;  Factor retval;
+    } icmp;
+    struct { /* ret    */
+      ReturnType type;
+      Factor arg1;
+    } ret;
+    struct { /* printf */
+      Factor retval;
+      Factor arg1;
+    } printf;
+    struct { /* scanf */
+      Factor retval;
+      Factor arg1;
+    } scanf;
+    struct { /* call */
+      Factor arg1;
+    } call;
+  } args;
+  /* 次の命令へのポインタ */
+  struct llvmcode *next;
+} LLVMcode;
+\end{lstlisting}
+
+\subsubsection {labelSyntaxCommandの定義}
+実験5ではバックパッチを利用する構文(For文，If文，While文)を実装した．
+バックパッチを行うために，定義したLLVMコードのポインタを保持する必要がある．
+これらの構文は入れ語になる可能性があるが，その構文の解析が終了した時点でバックパッチ処理は終わっているため，スタックで実装すれば良い．
+\verb#labelSyntaxCommand#は，ラベルをバックパッチ処理する必要がある構文\verb#labelSyntax#の種別を記した列挙型である．
+\begin{lstlisting}[caption=labelSyntaxCommandの定義,label=lst:ex5:llvm.h:labelsyntaxcommand]
+/* ラベルを必要とする構文 */
+typedef enum {
+  While,
+  If,
+  For
+} labelSyntaxCommand;
+\end{lstlisting}
+
+\subsubsection {LabelSyntaxの定義}
+上記の通り，構文単位でバックパッチの処理に必要なラベルやジャンプ命令のLLVMコードのポインタを保持するための構造体を\verb#LabelSyntax#と呼称する．
+これの定義をソースコード\ref{lst:ex5:llvm.h:labelsyntax}に示す．
+
+While文は，実装するために1つのラベル番号と2つのジャンプ命令のポインタを保持する必要がある．
+If文は，実装するために3つのジャンプ命令のポインタを保持する必要がある．
+For文は，実装するために1つの変数と1つのラベル，2つのジャンプ命令のポインタを保持する必要がある．
+\begin{lstlisting}[caption=labelSyntaxの定義,label=lst:ex5:llvm.h:labelsyntax]
+/* ラベルを必要とする構文 */
+typedef struct labelSyntax {
+  labelSyntaxCommand command;
+  union {
+    struct { /* while文のラベル */
+      int label1;
+      LLVMcode *br1;
+      LLVMcode *br2;
+    } While;
+    struct {
+      LLVMcode *br1;
+      LLVMcode *br2;
+      LLVMcode *br3;
+    } If;
+    struct {
+      Factor var;
+      LLVMcode *br1;
+      int label1;
+      LLVMcode *br2;
+    } For;
+  } args;
+} LabelSyntax;
+\end{lstlisting}
+
+\subsubsection {LabelSyntaxStackの定義}
+\verb#LabelSyntax#のスタックを定義したものが\verb#LavelSyntaxStack#である．
+これを定義したプログラムをソースコード\ref{lst:ex5:llvm.h:labelsyntaxstack}に示す．内部
+にスタック列としての\verb#elements#と,スタックポインタを表す\verb#top#を保持するようにした.
+\begin{lstlisting}[caption=labelSyntaxStackの定義,label=lst:ex5:llvm.h:labelsyntaxstack]
+/* ラベルを必要とする構文のスタック */
+typedef struct {
+  LabelSyntax elements[100];
+  unsigned int top;
+} LabelSyntaxStack;
+\end{lstlisting}
+
+\subsubsection{useReadおよびuseWrite}
+コンパイラされるPL-0言語中に\verb#read#命令および\verb#write#命令が存在する場合，出力するLLVMコードにソースコード\ref{lst:ex5:llvm.h:readllvmcode}およびソースコード\ref{lst:ex5:llvm.h:writellvmcode}を追加しなければならない．
+そのため，\verb#write#命令（\verb#read#命令）が出現したか否かをフラグとして管理した．
+それぞれの変数名を\verb#useRead#および\verb#useWrite#と定義した．
+
+\begin{lstlisting}[caption=標準入力を行うためLLVMコード,label=lst:ex5:llvm.h:readllvmcode]
+@.str.read = private unnamed_addr constant [3 x i8] c"%d\00", align 1
+declare dso_local i32 @__isoc99_scanf(i8*, ...)
+\end{lstlisting}
+
+\begin{lstlisting}[caption=標準出力を行うためLLVMコード,label=lst:ex5:llvm.h:writellvmcode]
+@.str.write = private unnamed_addr constant [4 x i8] c"%d\0A\00", align 1
+declare dso_local i32 @printf(i8*, ...)
+\end{lstlisting}
+
+
+\subsubsection{lstackおよびpushLabelSyntax関数およびpopLabelSyntax関数}
+\verb#lstack#は\verb#LabelSyntaxStack#のインスタンスであり，実際のスタックである．
+\verb#pushLabelSyntax#関数は，\verb#LabelSyntax#を\verb#lstack#から一つ取り出して返却する関数である．
+\verb#popLabelSyntax#関数は，引数として受けとった\verb#LabelSyntax#を\verb#lstack#に一つ追加するための関数である．
+追加した際はスタックポインタである\verb#top#をインクリメントして，取り出した際はデクリメントする．
+これの定義をソースコード\ref{lst:ex5:llvm.c:pushLabelSyntax_popLabelSyntax}に示す．
+
+\begin{lstlisting}[caption=factorpop関数およびfactorpush関数の定義,label=lst:ex5:llvm.c:pushLabelSyntax_popLabelSyntax]
+LabelSyntaxStack lstack;
+
+void pushLabelSyntax(LabelSyntax x) {
+  lstack.top ++;
+  lstack.elements[lstack.top] = x;
+}
+
+LabelSyntax popLabelSyntax() {
+  LabelSyntax tmp;
+  tmp = lstack.elements[lstack.top];
+  lstack.top --;
+  return tmp;
+}
+\end{lstlisting}
+
+\subsubsection{displayFactor関数の修正}
+\verb#displayFactor#関数は，\verb#Factor#を表示するための関数である．手続き呼び出し命令が存在するため，\verb#Factor#は手続き名を含む可能性がある．
+そこで，\verb#Factor#に手続き名が含まれていた場合も正しく表示するように修正した．
+
+手続き呼び出しの場合は，\verb#%手続き名#と表示した．
+
+この関数は，\verb#Factor#および書き込むためのファイルポインタ\verb#fp#を受取って，そこに上記のように\verb#Factor#を書き出す処理を行う．
+
+これの定義をソースコード\ref{lst:ex4:llvm.c:displayFactor}に示す．
+\begin{lstlisting}[caption=displayFactor関数の定義,label=lst:ex4:llvm.c:displayFactor]
+/* Factorの表示 */
+void displayFactor(FILE *fp, Factor factor ){
+  switch(factor.type){
+    case GLOBAL_VAR:
+      fprintf(fp, "@%s", factor.vname);
+      break;
+    case LOCAL_VAR:
+      fprintf(fp, "%%%d", factor.val);
+      break;
+    case CONSTANT:
+      fprintf(fp, "%d", factor.val);
+      break;
+    case PROC_NAME:
+      fprintf(fp, "@%s", factor.vname);
+      break;
+    default:
+      break;
+  }
+}
+\end{lstlisting}
+
+
+\subsubsection{displayLlvmcodes関数}
+\verb#displayLlvmcodes#関数は，\verb#LLVMcode#を表示するための関数である．
+この関数は，\verb#LLVMcode#のポインタおよび書き込むためのファイルポインタ\verb#fp#を受取って，そこに上記のように\verb#LLVMcode#を書き出す処理を行う．
+
+追加する命令のぶんだけ関数に追加実装を行った．
+
+これの定義をソースコード\ref{lst:ex5:llvm.c:displayLlvmcodes}に示す．
+
+\begin{lstlisting}[caption=displayLlvmcodes関数の定義,label=lst:ex5:llvm.c:displayLlvmcodes]
+/* LLVMコードを表示する */
+void displayLlvmcodes(FILE *fp, LLVMcode *code) {
+  if (code == NULL) return;
+  switch (code->command){
+    case CommonGlobal:
+      displayFactor(fp, (code->args).common_global.retval );
+      fprintf(fp, " = common global i32 0, align 4\n");
+      break;
+    case Alloca:
+      displayFactor(fp, (code->args).alloca.retval );
+      fprintf(fp, " = alloca i32, align 4\n");
+      break;
+    case Store:
+      fprintf(fp, "store i32 ");
+      displayFactor(fp, (code->args).store.arg1 );
+      fprintf(fp, ", i32* ");
+      displayFactor(fp, (code->args).store.arg2 );
+      fprintf(fp, ", align 4\n");
+      break;
+    case Load:
+      displayFactor(fp, (code->args).load.retval );
+      fprintf(fp, " = load i32, i32* ");
+      displayFactor(fp, (code->args).load.arg1 );
+      fprintf(fp, ", align 4\n");
+      break;
+    case BrUncond:
+      fprintf(fp, "br label %%%d\n\n", (code->args).bruncond.arg1);
+      break;
+    case BrCond:
+      fprintf(fp, "br i1 ");
+      displayFactor(fp, (code->args).brcond.arg1 );
+      fprintf(fp, ", label %%%d, label %%%d\n\n", (code->args).brcond.arg2, (code->args).brcond.arg3);
+      break;
+    case Label:
+      fprintf(fp, "; <label>:%d:\n", (code->args).label.l);
+      break;
+    case Add:
+      displayFactor(fp, (code->args).add.retval );
+      fprintf(fp, " = add nsw i32 ");
+      displayFactor(fp, (code->args).add.arg1 );
+      fprintf(fp, ", ");
+      displayFactor(fp, (code->args).add.arg2 );
+      fprintf(fp, "\n");
+      break;
+    case Sub:
+      displayFactor(fp, (code->args).sub.retval );
+      fprintf(fp, " = sub nsw i32 ");
+      displayFactor(fp, (code->args).sub.arg1 );
+      fprintf(fp, ", ");
+      displayFactor(fp, (code->args).sub.arg2 );
+      fprintf(fp, "\n");
+      break;
+    case Mul:
+      displayFactor(fp, (code->args).mul.retval );
+      fprintf(fp, " = mul nsw i32 ");
+      displayFactor(fp, (code->args).mul.arg1 );
+      fprintf(fp, ", ");
+      displayFactor(fp, (code->args).mul.arg2 );
+      fprintf(fp, "\n");
+      break;
+    case Div:
+      displayFactor(fp, (code->args).div.retval );
+      fprintf(fp, " = sdiv i32 ");
+      displayFactor(fp, (code->args).div.arg1 );
+      fprintf(fp, ", ");
+      displayFactor(fp, (code->args).div.arg2 );
+      fprintf(fp, "\n");
+      break;
+    case Icmp:
+      displayFactor(fp, (code->args).icmp.retval );
+      fprintf(fp, " = icmp ");
+      switch ((code->args).icmp.type) {
+        case EQUAL:
+          fprintf(fp, "eq");break;
+        case NE:
+          fprintf(fp, "ne");break;
+        case SGT:
+          fprintf(fp, "sgt");break;
+        case SGE:
+          fprintf(fp, "sge");break;
+        case SLT:
+          fprintf(fp, "slt");break;
+        case SLE:
+          fprintf(fp, "sle");break;
+      }
+      fprintf(fp, " i32 ");
+      displayFactor(fp, (code->args).icmp.arg1 );
+      fprintf(fp, ", ");
+      displayFactor(fp, (code->args).icmp.arg2 );
+      fprintf(fp, "\n");
+      break;
+    case Ret:
+      switch ((code->args).ret.type) {
+        case INT32:
+          fprintf(fp, "ret i32 ");
+          displayFactor(fp, (code->args).ret.arg1 );
+          fprintf(fp, "\n");
+          break;
+        case VOID:
+          fprintf(fp, "ret void\n");
+          break;
+      }
+
+      break;
+    case Printf:
+      displayFactor(fp, (code->args).printf.retval );
+      fprintf(fp, " = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str.write, i64 0, i64 0), i32 ");
+      displayFactor(fp, (code->args).printf.arg1 );
+      fprintf(fp, ")\n");
+      break;
+    case Scanf:
+      displayFactor(fp, (code->args).scanf.retval );
+      fprintf(fp, " = call i32 (i8*, ...) @__isoc99_scanf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @.str.read, i64 0, i64 0), i32* ");
+      displayFactor(fp, (code->args).scanf.arg1 );
+      fprintf(fp, ")\n");
+      break;
+    case Call:
+      fprintf(fp, "call void ");
+      displayFactor(fp, (code->args).call.arg1 );
+      fprintf(fp, "()\n");
+      break;
+    default:
+      break;
+  }
+  displayLlvmcodes(fp, code->next);
+}
+\end{lstlisting}
+
+
+\subsubsection{outputCode関数の修正}
+\verb#outputCode#関数は，LLVMコードとして目的コードを出力する関数である．
+プログラムのパースが終わった時点でこの関数が呼ばれて，目的コードが出力されるように実装した．
+
+標準入力命令および標準出力命令が呼び出されたプログラムでは，上記のようにLLVMコードを追加で出力しなければならないため，\verb#outputCode#に追加実装を行った．
+
+これの定義をソースコード\ref{lst:ex5:llvm.c:outputCode}に示す．
+
+\begin{lstlisting}[caption=outputCode関数の修正,label=lst:ex5:llvm.c:outputCode]
+void outputCode () {
+  // fprintf(stderr, "OUTPUT CODE\n");
+
+  FILE *outputfile;
+  outputfile = fopen("result.ll", "w");
+  if (outputfile == NULL) {
+    fprintf(stderr, "unexpected error\n");
+    exit(1);
+  }
+
+  displayLlvmcodes(outputfile, codehd);
+
+  if (useRead){
+    fprintf(outputfile, "@.str.read = private unnamed_addr constant [3 x i8] c\"%%d\\00\", align 1\n");
+    fprintf(outputfile, "declare dso_local i32 @__isoc99_scanf(i8*, ...)\n");
+  }
+  if (useWrite){
+    fprintf(outputfile, "@.str.write = private unnamed_addr constant [4 x i8] c\"%%d\\0A\\00\", align 1\n");
+    fprintf(outputfile, "declare dso_local i32 @printf(i8*, ...)\n");
+  }
+
+  displayLlvmfundecl(outputfile, declhd);
+
+  fclose(outputfile);
+}
+\end{lstlisting}
+
+
+\subsubsection{defineBr関数}
+\verb#defineBr#関数は，\verb#Br#命令である\verb#LLVMcode#をメモリ確保および作成して，\verb#pushLLVMcode#関数を呼び出してリストに連結するプログラムである．
+
+この関数は，定義したラベルに無条件でジャンプする命令を表す\verb#LLVMcode#を作成する．
+作成された\verb#LLVMcode#のポインタが返却される．
+
+これの定義をソースコード\ref{lst:ex5:llvm.c:defineBr}に示す．
+
+\begin{lstlisting}[caption=defineBr関数の定義,label=lst:ex5:llvm.c:defineBr]
+/* LLVM Br命令の作成 */
+LLVMcode *defineBr(int arg1) {
+  // fprintf(stderr, "DEFINE BR\n");
+
+  LLVMcode *tmp;
+  tmp = (LLVMcode *)malloc(sizeof(LLVMcode));
+  tmp->next = NULL;
+  tmp->command = BrUncond;
+
+  (tmp->args).bruncond.arg1 = arg1;
+
+  pushLLVMcode (tmp);
+
+  return tmp;
+}
+\end{lstlisting}
+
+\subsubsection{defineBrCondition関数}
+\verb#defineBr#関数は，\verb#Br#命令である\verb#LLVMcode#をメモリ確保および作成して，\verb#pushLLVMcode#関数を呼び出してリストに連結するプログラムである．
+
+この関数は，2つの定義したラベルのうちいずれかに，popした\verb#Factor#の値に依存してジャンプする命令を表す\verb#LLVMcode#を作成する．
+作成された\verb#LLVMcode#のポインタが返却される．
+
+これの定義をソースコード\ref{lst:ex5:llvm.c:defineBrCondition}に示す．
+
+\begin{lstlisting}[caption=defineCondition関数の定義,label=lst:ex5:llvm.c:defineBrCondition]
+/* LLVM Br Condition命令の作成 */
+LLVMcode *defineBrCondition(int arg2, int arg3) {
+  // fprintf(stderr, "DEFINE BR CONDITION\n");
+
+  LLVMcode *tmp;
+  tmp = (LLVMcode *)malloc(sizeof(LLVMcode));
+  tmp->next = NULL;
+  tmp->command = BrCond;
+
+  (tmp->args).brcond.arg1 = factorpop();
+  (tmp->args).brcond.arg2 = arg2;
+  (tmp->args).brcond.arg3 = arg3;
+
+  pushLLVMcode (tmp);
+
+  return tmp;
+}
+\end{lstlisting}
+
+
+\subsubsection{defineLabel関数}
+\verb#defineLabel#関数は，\verb#Label#命令である\verb#LLVMcode#をメモリ確保および作成して，\verb#pushLLVMcode#関数を呼び出してリストに連結するプログラムである．
+
+この関数は，ラベルを定義する命令を表す\verb#LLVMcode#を作成する．
+作成された\verb#LLVMcode#のポインタが返却される．
+
+これの定義をソースコード\ref{lst:ex5:llvm.c:defineLabel}に示す．
+
+\begin{lstlisting}[caption=defineLabel関数の定義,label=lst:ex5:llvm.c:defineLabel]
+/* LLVM Label命令の作成 */
+LLVMcode *defineLabel() {
+  // fprintf(stderr, "DEFINE LABEL\n");
+
+  LLVMcode *tmp;
+  tmp = (LLVMcode *)malloc(sizeof(LLVMcode));
+  tmp->next = NULL;
+  tmp->command = Label;
+
+  (tmp->args).label.l = cntr;
+  cntr ++;
+
+  pushLLVMcode (tmp);
+
+  return tmp;
+}
+
+\end{lstlisting}
+
+\subsubsection{definePrintf関数}
+\verb#definePrintf#関数は，\verb#printf#関数をLLVM命令中で呼び出すためのコードを\verb#LLVMcode#としてメモリ確保および作成して，\verb#pushLLVMcode#関数を呼び出してリストに連結するプログラムである．
+
+この関数は，1つの\verb#Factor#を受け取って，それを出力するコードを表す\verb#LLVMcode#を作成する．
+作成された\verb#LLVMcode#のポインタが返却される．
+
+これの定義をソースコード\ref{lst:ex5:llvm.c:definePrintf}に示す．
+
+\begin{lstlisting}[caption=definePrintf関数の定義,label=lst:ex5:llvm.c:definePrintf]
+/* LLVM Printf命令の作成 */
+LLVMcode *definePrintf(Factor arg1) {
+  LLVMcode *tmp;
+  tmp = (LLVMcode *)malloc(sizeof(LLVMcode));
+  tmp->next = NULL;
+  tmp->command = Printf;
+
+  Factor retval;
+  retval.type = LOCAL_VAR;
+  retval.val = cntr;
+  cntr++;
+
+  (tmp->args).printf.retval = retval;
+  (tmp->args).printf.arg1 = arg1;
+
+  pushLLVMcode (tmp);
+
+  return tmp;
+}
+\end{lstlisting}
+
+\subsubsection{defineScanf関数}
+\verb#defineScanf#関数は，\verb#scanf#関数をLLVM命令中で呼び出すためのコードを\verb#LLVMcode#としてメモリ確保および作成して，\verb#pushLLVMcode#関数を呼び出してリストに連結するプログラムである．
+
+この関数は，標準入力を行い，新しいレジスタに代入を行うコードを表す\verb#LLVMcode#を作成する．
+作成された\verb#LLVMcode#のポインタが返却される．
+
+これの定義をソースコード\ref{lst:ex5:llvm.c:defineScanf}に示す．
+
+\begin{lstlisting}[caption=defineScanf関数の定義,label=lst:ex5:llvm.c:defineScanf]
+/* LLVM Scanf命令の作成 */
+LLVMcode *defineScanf(){
+  LLVMcode *tmp;
+  tmp = (LLVMcode *)malloc(sizeof(LLVMcode));
+  tmp->next = NULL;
+  tmp->command = Scanf;
+
+  Factor retval;
+  retval.type = LOCAL_VAR;
+  retval.val = cntr;
+  cntr++;
+
+  (tmp->args).printf.retval = retval;
+  (tmp->args).printf.arg1 = factorpop();
+
+  pushLLVMcode (tmp);
+
+  return tmp;
+}
+\end{lstlisting}
+
+\subsubsection{defineCall関数}
+\verb#defineCall#関数は，手続きを呼び出すためのコードを\verb#LLVMcode#としてメモリ確保および作成して，\verb#pushLLVMcode#関数を呼び出してリストに連結するプログラムである．
+
+この関数は，\verb#Factor#をpopして，その手続きを呼び出すコードを表す\verb#LLVMcode#を作成する．
+作成された\verb#LLVMcode#のポインタが返却される．
+
+これの定義をソースコード\ref{lst:ex5:llvm.c:defineCall}に示す．
+
+\begin{lstlisting}[caption=defineCall関数の定義,label=lst:ex5:llvm.c:defineCall]
+/* LLVM Call命令の作成 */
+LLVMcode *defineCall(Factor arg1){
+  LLVMcode *tmp;
+  tmp = (LLVMcode *)malloc(sizeof(LLVMcode));
+  tmp->next = NULL;
+  tmp->command = Call;
+
+  (tmp->args).call.arg1 = arg1;
+
+  pushLLVMcode (tmp);
+
+  return tmp;
+}
+\end{lstlisting}
+
+最後に，これらの関数を\verb#parser.y#からどのように呼び出しているか説明する．
+
+\subsubsection{llvm.cの変数の参照}
+実験4と同様に\verb#extern#を用いて，\verb#llvm.c#の変数を外部参照して，\verb#parser.y#内で使用できるようにした．外部参照しているのみなので，実際の変数の機能については省略する．
+
+これをソースコード\ref{lst:ex5:parser.y:variables}に示す．
+
+\begin{lstlisting}[caption=変数の外部参照,label=lst:ex5:parser.y:variables]
+#include "llvm.h"
+
+extern int yylineno;
+extern char *yytext;
+
+extern Factorstack fstack; /* 整数もしくはレジスタ番号を保持するスタック */
+
+extern LLVMcode *codehd; /* 命令列の先頭のアドレスを保持するポインタ */
+extern LLVMcode *codetl; /* 命令列の末尾のアドレスを保持するポインタ */
+extern unsigned int cntr;
+extern unsigned int useRead;
+extern unsigned int useWrite;
+
+/* 関数定義の線形リストの先頭の要素のアドレスを保持するポインタ */
+extern Fundecl *declhd;
+/* 関数定義の線形リストの末尾の要素のアドレスを保持するポインタ */
+extern Fundecl *decltl;
+
+extern LabelSyntaxStack lstack;
+\end{lstlisting}
+
+\subsubsection{program構文規則}
+\verb#program#規則では，プログラムの開始時に\verb#useRead#および\verb#useWrite#を0に設定するように定義した．
+このプログラムをソースコード\ref{lst:ex5:parser.y:rules:program}に示す．
+\begin{lstlisting}[caption=programの処理,label=lst:ex5:parser.y:rules:program]
+program
+        : {
+            fstack.top = 0;
+            lstack.top = 0;
+            useRead = 0;
+            useWrite = 0;
+          } PROGRAM IDENT SEMICOLON outblock PERIOD { outputCode(); }
+        ;
+\end{lstlisting}
+\subsubsection{if文の実装}
+このプログラムをソースコード\ref{lst:ex5:parser.y:rules:if_statement}に示す．
+\begin{lstlisting}[caption=if文の処理,label=lst:ex5:parser.y:rules:if_statement]
+if_statement
+        : IF condition {
+            // if ~~~ BR1 then LABEL2 ~~~~~ BR2 else LABEL3 ~~~~~~ BR3 LABEL4
+            LabelSyntax lsyntax;
+            lsyntax.command = If;
+            lsyntax.args.If.br1 = defineBrCondition(1, 1);
+            lsyntax.args.If.br2 = NULL;
+            lsyntax.args.If.br3 = NULL;
+            pushLabelSyntax(lsyntax);
+            displayLabelSyntax(lsyntax);
+          } THEN {
+            LabelSyntax lsyntax = popLabelSyntax();
+            lsyntax.args.If.br1->args.brcond.arg2 = defineLabel()->args.label.l;
+            pushLabelSyntax(lsyntax);
+          } statement {
+            LabelSyntax lsyntax = popLabelSyntax();
+            lsyntax.args.If.br2 = defineBr(1);
+            pushLabelSyntax(lsyntax);
+          } else_statement {
+            LabelSyntax lsyntax = popLabelSyntax();
+            int label1 = defineLabel()->args.label.l;
+            lsyntax.args.If.br2->args.bruncond.arg1 = label1;
+            if (lsyntax.args.If.br3 != NULL)
+              lsyntax.args.If.br3->args.bruncond.arg1 = label1;
+            else
+              lsyntax.args.If.br1->args.brcond.arg3 = label1;
+          }
+        ;
+
+else_statement
+        : ELSE {
+            LabelSyntax lsyntax = popLabelSyntax();
+            lsyntax.args.If.br1->args.brcond.arg3 = defineLabel()->args.label.l;
+            pushLabelSyntax(lsyntax);
+          } statement {
+            LabelSyntax lsyntax = popLabelSyntax();
+            lsyntax.args.If.br3 = defineBr(1);
+            pushLabelSyntax(lsyntax);
+          }
+        |
+        ;
+\end{lstlisting}
+\subsubsection{while文の実装}
+このプログラムをソースコード\ref{lst:ex5:parser.y:rules:while_statement}に示す．
+\begin{lstlisting}[caption=while文の処理,label=lst:ex5:parser.y:rules:while_statement]
+while_statement
+        : WHILE {
+            // BR1 LABEL1 while ~~~ BR2 do LABEL2 ~~~~~ BR3 LABEL3
+            LabelSyntax lsyntax;
+            lsyntax.command = While;
+            lsyntax.args.While.br1 = defineBr(1); // LABEL1へのジャンプ命令を定義して，LLVM命令の場所を記憶
+            lsyntax.args.While.label1 = defineLabel()->args.label.l; // LABEL1を定義して，LABEL1のレジスタ番号を代入
+            lsyntax.args.While.br1->args.bruncond.arg1 = lsyntax.args.While.label1; // BR1にLABEL1のレジスタ番号を代入
+            lsyntax.args.While.br2 = NULL;
+            // displayLabelSyntax(lsyntax);
+            pushLabelSyntax(lsyntax);
+          } condition {
+            LabelSyntax lsyntax = popLabelSyntax();
+            lsyntax.args.While.br2 = defineBrCondition(1, 1); // LABEL2またはLABEL3へのジャンプ命令を定義して，LLVM命令の場所を記憶
+            pushLabelSyntax(lsyntax);
+            // displayLabelSyntax(lsyntax);
+          } DO {
+            LabelSyntax lsyntax = popLabelSyntax();
+            lsyntax.args.While.br2->args.brcond.arg2 = defineLabel()->args.label.l; // LABEL2を定義して，BR2のジャンプ先1にLABEL2のレジスタ番号を代入
+            pushLabelSyntax(lsyntax);
+            // displayLabelSyntax(lsyntax);
+          }  statement {
+            LabelSyntax lsyntax = popLabelSyntax();
+            defineBr(lsyntax.args.While.label1); // LABEL1へジャンプするBR命令を定義
+            lsyntax.args.While.br2->args.brcond.arg3 = defineLabel()->args.label.l; // LABEL2を定義して，BR2のジャンプ先1にLABEL2のレジスタ番号を代入
+            // displayLabelSyntax(lsyntax);
+          }
+        ;
+\end{lstlisting}
+\subsubsection{for文の実装}
+このプログラムをソースコード\ref{lst:ex5:parser.y:rules:for_statement}に示す．
+\begin{lstlisting}[caption=for文の処理,label=lst:ex5:parser.y:rules:for_statement]
+
+for_statement
+        : FOR IDENT ASSIGN expression {
+            LabelSyntax lsyntax;
+            lsyntax.command = For;
+            lookup($2);
+
+            Factor arg1, arg2;
+            arg2 = factorpop();
+            arg1 = factorpop();
+
+            defineStore(arg1, arg2);
+
+            lsyntax.args.For.br1 = defineBr(1);
+
+            lsyntax.args.For.var = arg2;
+
+            lsyntax.args.For.label1 = defineLabel()->args.label.l;
+            lsyntax.args.For.br1->args.bruncond.arg1 = lsyntax.args.For.label1;
+
+            defineLoad(arg2);
+
+            pushLabelSyntax(lsyntax);
+          } TO expression {
+            LabelSyntax lsyntax = popLabelSyntax();
+
+            Factor arg1, arg2;
+            arg2 = factorpop();
+            arg1 = factorpop();
+            defineIcmp(SLE, arg1, arg2);
+
+            lsyntax.args.For.br2 = defineBrCondition(1, 1);
+
+            lsyntax.args.For.br2->args.brcond.arg2 = defineLabel()->args.label.l;
+
+            pushLabelSyntax(lsyntax);
+
+
+          } DO statement {
+            LabelSyntax lsyntax = popLabelSyntax();
+
+            defineLoad(lsyntax.args.For.var);
+
+            Factor arg1, arg2;
+            pushNumber(1);
+            arg2 = factorpop();
+            arg1 = factorpop();
+
+            defineAdd(arg1, arg2);
+
+            defineStore(factorpop(), lsyntax.args.For.var);
+
+            defineBr(lsyntax.args.For.label1);
+            lsyntax.args.For.br2->args.brcond.arg3 = defineLabel()->args.label.l;
+          }
+        ;
+\end{lstlisting}
+\subsubsection{呼び出し手続き文の実装}
+このプログラムをソースコード\ref{lst:ex5:parser.y:rules:proc_call_name}に示す．
+\begin{lstlisting}[caption=手続き呼び出しの処理,label=lst:ex5:parser.y:rules:proc_call_name]
+proc_call_statement
+        : proc_call_name
+        ;
+
+proc_call_name
+        : IDENT{
+            lookup($1);
+            Factor arg1;
+            arg1 = factorpop();
+            defineCall(arg1);
+          }
+        ;
+\end{lstlisting}
+\subsubsection{read文およびwrite文の実装}
+このプログラムをソースコード\ref{lst:ex5:parser.y:rules:read_and_write_statement}に示す．
+\begin{lstlisting}[caption=read文およびwrite文の処理,label=lst:ex5:parser.y:rules:read_and_write_statement]
+read_statement
+        : READ LPAREN IDENT RPAREN {
+            useRead = 1;
+            lookup($3);
+            defineScanf();
+          }
+        ;
+
+write_statement
+        : WRITE LPAREN expression RPAREN {
+            useWrite = 1;
+
+            Factor arg1;
+            arg1 = factorpop();
+            definePrintf(arg1);
+          }
+        ;
+\end{lstlisting}
+\subsubsection{condition句の実装}
+このプログラムをソースコード\ref{lst:ex5:parser.y:rules:condition}に示す．
+\begin{lstlisting}[caption=condition句の処理,label=lst:ex5:parser.y:rules:condition]
+condition
+        : expression EQ expression {
+            Factor arg1, arg2;
+            arg2 = factorpop();
+            arg1 = factorpop();
+            defineIcmp(EQUAL, arg1, arg2);
+          }
+        | expression NEQ expression {
+            Factor arg1, arg2;
+            arg2 = factorpop();
+            arg1 = factorpop();
+            defineIcmp(NE, arg1, arg2);
+          }
+        | expression LT expression {
+            Factor arg1, arg2;
+            arg2 = factorpop();
+            arg1 = factorpop();
+            defineIcmp(SLT, arg1, arg2);
+          }
+        | expression LE expression {
+            Factor arg1, arg2;
+            arg2 = factorpop();
+            arg1 = factorpop();
+            defineIcmp(SLE, arg1, arg2);
+          }
+        | expression GT expression {
+            Factor arg1, arg2;
+            arg2 = factorpop();
+            arg1 = factorpop();
+            defineIcmp(SGT, arg1, arg2);
+          }
+        | expression GE expression {
+            Factor arg1, arg2;
+            arg2 = factorpop();
+            arg1 = factorpop();
+            defineIcmp(SGE, arg1, arg2);
+          }
+        ;
+\end{lstlisting}
 
 \subsection{実験結果}
+プログラムの\verb#pl0a.p#の実行結果の\verb#result.ll#をソースコード\ref{lst:ex5:result.ll:pl0a.p}に示す．
+\begin{lstlisting}[caption=condition句の処理,label=lst:ex5:result.ll:pl0a.p]
+@n = common global i32 0, align 4
+@sum = common global i32 0, align 4
+define i32 @main() {
+%1 = alloca i32, align 4
+store i32 0, i32* %1, align 4
+store i32 10, i32* @n, align 4
+store i32 0, i32* @sum, align 4
+br label %2
+
+; <label>:2:
+%3 = load i32, i32* @n, align 4
+%4 = icmp sgt i32 %3, 0
+br i1 %4, label %5, label %11
+
+; <label>:5:
+%6 = load i32, i32* @sum, align 4
+%7 = load i32, i32* @n, align 4
+%8 = add nsw i32 %6, %7
+store i32 %8, i32* @sum, align 4
+%9 = load i32, i32* @n, align 4
+%10 = sub nsw i32 %9, 1
+store i32 %10, i32* @n, align 4
+br label %2
+
+; <label>:11:
+%12 = load i32, i32* @sum, align 4
+ret i32 0
+}
+\end{lstlisting}
+
+プログラムの\verb#pl0b.p#の実行結果の\verb#result.ll#をソースコード\ref{lst:ex5:result.ll:pl0b.p}に示す．
+\begin{lstlisting}[caption=condition句の処理,label=lst:ex5:result.ll:pl0b.p]
+@n = common global i32 0, align 4
+@x = common global i32 0, align 4
+@.str.read = private unnamed_addr constant [3 x i8] c"%d\00", align 1
+declare dso_local i32 @__isoc99_scanf(i8*, ...)
+@.str.write = private unnamed_addr constant [4 x i8] c"%d\0A\00", align 1
+declare dso_local i32 @printf(i8*, ...)
+define void @prime() {
+%1 = alloca i32, align 4
+%2 = load i32, i32* @x, align 4
+%3 = sdiv i32 %2, 2
+store i32 %3, i32* %1, align 4
+br label %4
+
+; <label>:4:
+%5 = load i32, i32* @x, align 4
+%6 = load i32, i32* @x, align 4
+%7 = load i32, i32* %1, align 4
+%8 = sdiv i32 %6, %7
+%9 = load i32, i32* %1, align 4
+%10 = mul nsw i32 %8, %9
+%11 = icmp ne i32 %5, %10
+br i1 %11, label %12, label %15
+
+; <label>:12:
+%13 = load i32, i32* %1, align 4
+%14 = sub nsw i32 %13, 1
+store i32 %14, i32* %1, align 4
+br label %4
+
+; <label>:15:
+%16 = load i32, i32* %1, align 4
+%17 = icmp eq i32 %16, 1
+br i1 %17, label %18, label %21
+
+; <label>:18:
+%19 = load i32, i32* @x, align 4
+%20 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str.write, i64 0, i64 0), i32 %19)
+br label %21
+
+; <label>:21:
+ret void
+}
+
+define i32 @main() {
+%1 = alloca i32, align 4
+store i32 0, i32* %1, align 4
+%2 = call i32 (i8*, ...) @__isoc99_scanf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @.str.read, i64 0, i64 0), i32* @n)
+br label %3
+
+; <label>:3:
+%4 = load i32, i32* @n, align 4
+%5 = icmp slt i32 1, %4
+br i1 %5, label %6, label %10
+
+; <label>:6:
+%7 = load i32, i32* @n, align 4
+store i32 %7, i32* @x, align 4
+call void @prime()
+%8 = load i32, i32* @n, align 4
+%9 = sub nsw i32 %8, 1
+store i32 %9, i32* @n, align 4
+br label %3
+
+; <label>:10:
+ret i32 0
+}
+\end{lstlisting}
+
+プログラムの\verb#pl0c.p#の実行結果の\verb#result.ll#をソースコード\ref{lst:ex5:result.ll:pl0c.p}に示す．
+\begin{lstlisting}[caption=condition句の処理,label=lst:ex5:result.ll:pl0c.p]
+@n = common global i32 0, align 4
+@x = common global i32 0, align 4
+@i = common global i32 0, align 4
+@.str.read = private unnamed_addr constant [3 x i8] c"%d\00", align 1
+declare dso_local i32 @__isoc99_scanf(i8*, ...)
+@.str.write = private unnamed_addr constant [4 x i8] c"%d\0A\00", align 1
+declare dso_local i32 @printf(i8*, ...)
+define void @prime() {
+%1 = alloca i32, align 4
+%2 = load i32, i32* @x, align 4
+%3 = sdiv i32 %2, 2
+store i32 %3, i32* %1, align 4
+br label %4
+
+; <label>:4:
+%5 = load i32, i32* @x, align 4
+%6 = load i32, i32* @x, align 4
+%7 = load i32, i32* %1, align 4
+%8 = sdiv i32 %6, %7
+%9 = load i32, i32* %1, align 4
+%10 = mul nsw i32 %8, %9
+%11 = icmp ne i32 %5, %10
+br i1 %11, label %12, label %15
+
+; <label>:12:
+%13 = load i32, i32* %1, align 4
+%14 = sub nsw i32 %13, 1
+store i32 %14, i32* %1, align 4
+br label %4
+
+; <label>:15:
+%16 = load i32, i32* %1, align 4
+%17 = icmp eq i32 %16, 1
+br i1 %17, label %18, label %21
+
+; <label>:18:
+%19 = load i32, i32* @x, align 4
+%20 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str.write, i64 0, i64 0), i32 %19)
+br label %21
+
+; <label>:21:
+ret void
+}
+
+define i32 @main() {
+%1 = alloca i32, align 4
+store i32 0, i32* %1, align 4
+%2 = call i32 (i8*, ...) @__isoc99_scanf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @.str.read, i64 0, i64 0), i32* @n)
+store i32 2, i32* @i, align 4
+br label %3
+
+; <label>:3:
+%4 = load i32, i32* @i, align 4
+%5 = load i32, i32* @n, align 4
+%6 = icmp sle i32 %4, %5
+br i1 %6, label %7, label %11
+
+; <label>:7:
+%8 = load i32, i32* @i, align 4
+store i32 %8, i32* @x, align 4
+call void @prime()
+%9 = load i32, i32* @i, align 4
+%10 = add nsw i32 %9, 1
+store i32 %10, i32* @i, align 4
+br label %3
+
+; <label>:11:
+ret i32 0
+}
+\end{lstlisting}
+
+
+プログラムの\verb#pl0d.p#の実行結果の\verb#result.ll#をソースコード\ref{lst:ex5:result.ll:pl0d.p}に示す．
+\begin{lstlisting}[caption=condition句の処理,label=lst:ex5:result.ll:pl0d.p]
+@n = common global i32 0, align 4
+@temp = common global i32 0, align 4
+@.str.read = private unnamed_addr constant [3 x i8] c"%d\00", align 1
+declare dso_local i32 @__isoc99_scanf(i8*, ...)
+@.str.write = private unnamed_addr constant [4 x i8] c"%d\0A\00", align 1
+declare dso_local i32 @printf(i8*, ...)
+define void @fact() {
+%1 = alloca i32, align 4
+%2 = load i32, i32* @n, align 4
+%3 = icmp sle i32 %2, 1
+br i1 %3, label %4, label %5
+
+; <label>:4:
+store i32 1, i32* @temp, align 4
+br label %12
+
+; <label>:5:
+%6 = load i32, i32* @n, align 4
+store i32 %6, i32* %1, align 4
+%7 = load i32, i32* @n, align 4
+%8 = sub nsw i32 %7, 1
+store i32 %8, i32* @n, align 4
+call void @fact()
+%9 = load i32, i32* @temp, align 4
+%10 = load i32, i32* %1, align 4
+%11 = mul nsw i32 %9, %10
+store i32 %11, i32* @temp, align 4
+br label %12
+
+; <label>:12:
+ret void
+}
+
+define i32 @main() {
+%1 = alloca i32, align 4
+store i32 0, i32* %1, align 4
+%2 = call i32 (i8*, ...) @__isoc99_scanf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @.str.read, i64 0, i64 0), i32* @n)
+call void @fact()
+%3 = load i32, i32* @temp, align 4
+%4 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str.write, i64 0, i64 0), i32 %3)
+ret i32 0
+}
+\end{lstlisting}
 \subsection{考察}
 
 \end{document}
