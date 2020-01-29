@@ -1078,8 +1078,81 @@ LLVMコードを出力する時は，関数定義をしていない関数から�
 その際に，実験1から実験4までに作成したパーサーおよび四則演算プログラムを利用する．
 PL-0は条件分岐，繰り返し構文，手続き呼び出し，標準入出力機能を持つ言語であるため，チューリング完全であり任意のプログラミング言語と同等の処理が理論上可能である．
 \subsection{実験方法}
+LLVMコードを出力するためのCプログラムとして，\verb#llvm.h#および\verb#llvm.c#を引き続き利用した．
+実験4と同じくコンパイラ中で使用する構造体の定義を\verb#llvm.h#内で行い，\verb#llvm.c#内でそれら構造体を用いて，実際の処理を行う関数を記述した．
+また\verb#parser.y#では，\verb#llvm.c#の変数を\verb#extern#を用いて呼び出しながら，カプセル化を意識してプログラムを記述した．
 
-まず，LLVMコードを出力するためのCプログラムとして，\verb#llvm.h#および\verb#llvm.c#を作成した．これは，\verb#parser.y#と連動して，プログラムをパースしながら，\verb#llvm#コードを作成するプログラムである．ソースコードを一つのファイルに記述すると利便性が落ちるためである．コンパイラ中で使用する構造体の定義を\verb#llvm.h#内で行い，\verb#llvm.c#内でそれら構造体を用いて，実際の処理を行う関数を記述した．\verb#parser.y#では，\verb#llvm.c#の変数を\verb#extern#を用いて呼び出しながら，カプセル化を意識してプログラムを記述した．
+まず，LLVM命令の種別に対応するenum型の\verb#LLVMcommand#について説明する．この定義をソースコード\ref{lst:ex5:llvm.h:llvmcommand}に示す．
+実験5ではPL-0を対象としたコンパイラであるため，次のLLVM命令を使用した．
+\begin{itemize}
+  \item {メモリ確保命令\verb#Alloca#}
+  \item {メモリ書き込み命令\verb#Store#}
+  \item {メモリ読み込み命令\verb#Load#}
+  \item {加算命令\verb#Add#}
+  \item {減算命令\verb#Sub#}
+  \item {積算命令\verb#Mul#}
+  \item {除算命令\verb#Div#}
+  \item {返り値を返す命令\verb#Ret#}
+  \item {グローバル変数定義命令\verb#CommonGlobal#}
+  \item {標準出力命令\verb#Printf#}
+  \item {標準入力命令\verb#Scanf#}
+  \item {手続き呼び出し命令\verb#Call#}
+\end{itemize}
+\begin{lstlisting}[caption=LLVMコマンドを表す列挙型LLVMcommand,label=lst:ex5:llvm.h:llvmcommand]
+typedef enum {
+  Alloca,   /* alloca */
+  Store,    /* store  */
+  Load,     /* load   */
+  BrUncond, /* br     */
+  BrCond,   /* brc    */
+  Label,    /* label  */
+  Add,      /* add    */
+  Sub,      /* sub    */
+  Mul,      /* mul    */
+  Div,      /* div    */
+  Icmp,     /* icmp   */
+  Ret,      /* ret    */
+  CommonGlobal /* common_global */
+  Printf,   /* printf */
+  Scanf,    /* scanf  */
+  Call      /* call   */
+} LLVMcommand;
+\end{lstlisting}
+
+比較命令を扱うため，比較命令の種別を定義した\verb#Cmptype#について記載する．このプログラムをソースコード\ref{lst:ex5:llvm.h:cmptype}に示す．
+実験5ではPL-0を対象としたコンパイラであるため，次の比較の種別がある．
+\begin{itemize}
+  \item {2つの値が等しいか判別する\verb#Equal#}
+  \item {2つの値が等しくないか判別する\verb#NE#}
+  \item {前者が後者より大きいか判別する\verb#SGT#}
+  \item {前者が後者以上であるか判別する\verb#SGE#}
+  \item {前者が後者未満であるか判別する\verb#SLT#}
+  \item {前者が後者以下であるか判別する\verb#SLE#}
+\end{itemize}
+
+\begin{lstlisting}[caption=比較の種別を表す列挙型Cmptype,label=lst:ex5:llvm.h:cmptype]
+/* 比較演算子の種類 */
+typedef enum {
+  EQUAL, /* eq （==）*/
+  NE,    /* ne （!=）*/
+  SGT,   /* sgt （>，符号付き） */
+  SGE,   /* sge （>=，符号付き）*/
+  SLT,   /* slt （<，符号付き） */
+  SLE    /* sle （<=，符号付き）*/
+} Cmptype;
+\end{lstlisting}
+
+実験5では手続きのみ用いるため手続きの返り値は存在しない．一方LLVMでは関数として記述するためmain関数はintの返り値を持ち，それ以外の手続きに相当する関数はvoidの返り値を持っている．
+そこで，LLVMの関数を定義する構造体の返り値の型を列挙型で定義する．
+
+\begin{lstlisting}[caption=LLVMコマンドを表す列挙型LLVMcommand,label=lst:ex5:llvm.h:cmptype]
+typedef enum {
+  VOID,
+  INT32
+} ReturnType;
+\end{lstlisting}
+
+
 \subsection{実験結果}
 \subsection{考察}
 
