@@ -8,8 +8,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "llvm.h"
 #include "symbol_table.h"
+#include "llvm.h"
 
 extern int yylineno;
 extern char *yytext;
@@ -66,7 +66,7 @@ program
         ;
 
 outblock
-        : var_decl_part subprog_decl_part { doMainProcedure(); } statement { defineRet();delete(); }
+        : var_decl_part subprog_decl_part { doMainProcedure(); } statement { defineRet(INT32);delete(); }
         ;
 
 var_decl_part
@@ -100,37 +100,22 @@ subprog_decl
 proc_decl
         : PROCEDURE proc_name SEMICOLON {
             Factor proc_name = factorpop();
-            doProcedure(proc_name.vname, 0, args, VOID);
+            doProcedure(proc_name.vname, 0, args);
           } inblock {
-            defineRet();
+            defineRet(VOID);
             delete();
           }
         | PROCEDURE proc_name LPAREN did_list RPAREN SEMICOLON {
             Factor f = factorpop();
-            doProcedure(f.vname, arity, args, VOID);
+            doProcedure(f.vname, arity, args);
           } inblock {
-            defineRet();
-            delete();
-          }
-        | FUNCTION func_name LPAREN did_list RPAREN SEMICOLON {
-            Factor f = factorpop();
-            doProcedure(f.vname, arity, args, INT32);
-          } statement {
-            Factor arg1;
-            arg1 = (decltl->retval);
-            defineLoad(arg1);
-            (decltl->retval).val = cntr-1;
-            defineRet();
+            defineRet(VOID);
             delete();
           }
         ;
 
 proc_name
-        : IDENT { insert($1, PROC_NAME, 0, VOID); }
-        ;
-
-func_name
-        : IDENT { insert($1, PROC_NAME, 0, INT32); }
+        : IDENT { insert($1, PROC_NAME, 0); }
         ;
 
 inblock
@@ -294,7 +279,7 @@ proc_call_statement
         : proc_call_name {
             Factor f, args[10];
             f = factorpop();
-            defineCall(f, 0, args, VOID);
+            defineCall(f, 0, args);
           }
         | proc_call_name LPAREN arg_list RPAREN {
             Factor f, args[10];
@@ -307,35 +292,13 @@ proc_call_statement
                 arity ++;
               }
             }
-            defineCall(f, arity, args, VOID);
+            defineCall(f, arity, args);
           }
         ;
 
 proc_call_name
         : IDENT{ lookup($1); }
         ;
-
-
-func_call
-        : func_call_name LPAREN arg_list RPAREN {
-            Factor f, args[10];
-            unsigned int arity = 0;
-            while (1){
-              f = factorpop();
-              if (f.type == PROC_NAME) break;
-              else {
-                args[arity] = f;
-                arity ++;
-              }
-            }
-            defineCall(f, arity, args, INT32);
-          }
-        ;
-
-func_call_name
-        : IDENT{ lookup($1); }
-        ;
-
 
 block_statement
         : SBEGIN statement_list SEND
@@ -444,7 +407,6 @@ factor
         : var_name
         | NUMBER { pushNumber($1); }
         | LPAREN expression RPAREN
-        | func_call
         ;
 
 var_name
@@ -464,8 +426,8 @@ arg_list
         ;
 
 id_list
-        : IDENT { insert($1, UNDEFINED_VAR, 0, VOID); }
-        | id_list COMMA IDENT { insert($3, UNDEFINED_VAR, 0, VOID); }
+        : IDENT { insert($1, UNDEFINED_VAR, 0); }
+        | id_list COMMA IDENT { insert($3, UNDEFINED_VAR, 0); }
         ;
 
 did_list
