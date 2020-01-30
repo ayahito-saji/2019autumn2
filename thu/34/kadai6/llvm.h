@@ -1,15 +1,6 @@
 #ifndef _LLVM_H_
 #define _LLVM_H_
 
-typedef enum {
-  UNDEFINED_VAR,
-  GLOBAL_VAR,
-  LOCAL_VAR,
-  PROC_NAME,
-  CONSTANT
-} Scope;
-
-
 /* LLVM命令名の定義 */
 typedef enum {
   Alloca,   /* alloca */
@@ -98,6 +89,10 @@ typedef struct llvmcode {
     struct { /* icmp   */
       Cmptype type;  Factor arg1;  Factor arg2;  Factor retval;
     } icmp;
+    struct { /* ret    */
+      ReturnType type;
+      Factor arg1;
+    } ret;
     struct { /* printf */
       Factor retval;
       Factor arg1;
@@ -107,8 +102,6 @@ typedef struct llvmcode {
       Factor arg1;
     } scanf;
     struct { /* call */
-      Factor retval;
-      ReturnType rettype;
       Factor arg1;
       Factor args[10];
       unsigned int arity;
@@ -126,7 +119,6 @@ typedef struct fundecl {
   LLVMcode *codes;      /* 命令列の線形リストへのポインタ */
   struct fundecl *next; /* 次の関数定義へのポインタ      */
   ReturnType rettype;
-  Factor retval;
 } Fundecl;
 
 /* ラベルを必要とする構文 */
@@ -174,7 +166,7 @@ LabelSyntax getLabelSyntax();
 void displayLabelSyntax(LabelSyntax labelSyntax);
 
 void displayFactor(FILE *fp, Factor factor );
-void displayLlvmcodes(FILE *fp, LLVMcode *code, Fundecl *func);
+void displayLlvmcodes(FILE *fp, LLVMcode *code);
 void displayLlvmfundecl(FILE *fp, Fundecl *decl );
 
 void outputCode ();
@@ -191,12 +183,12 @@ LLVMcode *defineBr(int arg1);
 LLVMcode *defineBrCondition(int arg2, int arg3);
 LLVMcode *defineLabel();
 LLVMcode *defineIcmp(Cmptype type, Factor arg1, Factor arg2);
-LLVMcode *defineRet();
+LLVMcode *defineRet(ReturnType type);
 LLVMcode *definePrintf(Factor arg1);
 LLVMcode *defineScanf();
-LLVMcode *defineCall(Factor arg1, unsigned int arity, Factor args[10], ReturnType rettype);
+LLVMcode *defineCall(Factor arg1, unsigned int arity, Factor args[10]);
 
-void doProcedure(char *proc_name, unsigned int arity, char args[10][256], ReturnType rettype);
+void doProcedure(char *proc_name, unsigned int arity, char args[10][256]);
 void doMainProcedure();
 
 void pushNumber(int number);

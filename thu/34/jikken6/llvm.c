@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "llvm.h"
 #include "symbol_table.h"
+#include "llvm.h"
 #include <string.h>
 
 Factorstack fstack; /* 整数もしくはレジスタ番号を保持するスタック */
@@ -85,7 +85,7 @@ void factorpush(Factor x) {
 }
 
 /* LLVMコードを表示する */
-void displayLlvmcodes(FILE *fp, LLVMcode *code, Fundecl *func) {
+void displayLlvmcodes(FILE *fp, LLVMcode *code) {
   if (code == NULL) return;
   unsigned int i = 0;
   switch (code->command){
@@ -177,10 +177,10 @@ void displayLlvmcodes(FILE *fp, LLVMcode *code, Fundecl *func) {
       fprintf(fp, "\n");
       break;
     case Ret:
-      switch (func->rettype) {
+      switch ((code->args).ret.type) {
         case INT32:
           fprintf(fp, "ret i32 ");
-          displayFactor(fp, func->retval );
+          displayFactor(fp, (code->args).ret.arg1 );
           fprintf(fp, "\n");
           break;
         case VOID:
@@ -202,17 +202,9 @@ void displayLlvmcodes(FILE *fp, LLVMcode *code, Fundecl *func) {
       fprintf(fp, ")\n");
       break;
     case Call:
-      switch ((code->args).call.rettype) {
-        case INT32:
-          displayFactor(fp, (code->args).call.retval );
-          fprintf(fp, " = call i32 ");
-          break;
-        case VOID:
-          fprintf(fp, "call void ");
-          break;
-      }
+      fprintf(fp, "call void ");
       displayFactor(fp, (code->args).call.arg1 );
-      fprintf(fp, " (");
+      fprintf(fp, "(");
       for (i=0;i<(code->args).call.arity;i++) {
         fprintf(fp, "i32 ");
         displayFactor(fp, (code->args).call.args[i] );
@@ -223,7 +215,7 @@ void displayLlvmcodes(FILE *fp, LLVMcode *code, Fundecl *func) {
     default:
       break;
   }
-  displayLlvmcodes(fp, code->next, func);
+  displayLlvmcodes(fp, code->next);
 }
 
 /* 手続きを表示する */
@@ -246,7 +238,7 @@ void displayLlvmfundecl(FILE *fp, Fundecl *decl ) {
   }
 
   fprintf(fp, ") {\n");
-  displayLlvmcodes(fp, decl->codes, decl);
+  displayLlvmcodes(fp, decl->codes);
   fprintf(fp, "}\n");
   if(decl->next != NULL) {
     fprintf(fp, "\n");
@@ -265,7 +257,7 @@ void outputCode () {
     exit(1);
   }
 
-  displayLlvmcodes(outputfile, codehd, NULL);
+  displayLlvmcodes(outputfile, codehd);
 
   if (useRead){
     fprintf(outputfile, "@.str.read = private unnamed_addr constant [3 x i8] c\"%%d\\00\", align 1\n");
@@ -345,14 +337,7 @@ LLVMcode *defineStore(Factor arg1, Factor arg2) {
   tmp->command = Store;
 
   (tmp->args).store.arg1 = arg1;
-  if (arg2.type == PROC_NAME) {
-    Factor f;
-    f.type = LOCAL_VAR;
-    f.val = (decltl->retval).val;
-    (tmp->args).store.arg2 = f;
-  } else {
-    (tmp->args).store.arg2 = arg2;
-  }
+  (tmp->args).store.arg2 = arg2;
 
   pushLLVMcode (tmp);
 
@@ -559,12 +544,20 @@ LLVMcode *defineIcmp(Cmptype type, Factor arg1, Factor arg2) {
 }
 
 /* LLVM Ret命令の作成 */
-LLVMcode *defineRet() {
+LLVMcode *defineRet(ReturnType type) {
 
   LLVMcode *tmp;
   tmp = (LLVMcode *)malloc(sizeof(LLVMcode));
   tmp->next = NULL;
   tmp->command = Ret;
+
+  (tmp->args).ret.type = type;
+  if (type == INT32) {
+    Factor arg1;
+    arg1.type = CONSTANT;
+    arg1.val = 0;
+    (tmp->args).ret.arg1 = arg1;
+  }
 
   pushLLVMcode (tmp);
 
@@ -612,7 +605,7 @@ LLVMcode *defineScanf(){
 }
 
 /* LLVM Call命令の作成 */
-LLVMcode *defineCall(Factor arg1, unsigned int arity, Factor args[10], ReturnType rettype){
+LLVMcode *defineCall(Factor arg1, unsigned int arity, Factor args[10]){
   LLVMcode *tmp;
   unsigned int i = 0;
   tmp = (LLVMcode *)malloc(sizeof(LLVMcode));
@@ -625,18 +618,6 @@ LLVMcode *defineCall(Factor arg1, unsigned int arity, Factor args[10], ReturnTyp
 
   (tmp->args).call.arg1 = arg1;
   (tmp->args).call.arity = arity;
-  (tmp->args).call.rettype = rettype;
-
-  if (rettype == INT32) {
-    Factor retval;
-    retval.type = LOCAL_VAR;
-    retval.val = cntr;
-    cntr++;
-
-    (tmp->args).call.retval = retval;
-
-    factorpush(retval);
-  }
 
   pushLLVMcode (tmp);
 
@@ -668,10 +649,10 @@ void pushVariable(char *var_name, Scope type, int val) {
 }
 
 /* main以外の手続き／関数の実装 */
-void doProcedure(char *proc_name, unsigned int arity, char args[10][256], ReturnType rettype) {
+void doProcedure(char *proc_name, unsigned int arity, char args[10][256]) {
   // fprintf(stderr, "DEFINE PROCEDURE: %s\n", proc_name);
   codetl = NULL;
-  cntr = arity;
+  cntr = 0;
 
   unsigned int i;
 
@@ -679,7 +660,7 @@ void doProcedure(char *proc_name, unsigned int arity, char args[10][256], Return
   tmp = (Fundecl *)malloc(sizeof(Fundecl));
   strcpy(tmp->fname, proc_name);
   tmp->arity = arity;
-  tmp->rettype = rettype;
+  tmp->rettype = VOID;
 
   if (decltl == NULL){
     if (declhd == NULL) {
@@ -691,16 +672,7 @@ void doProcedure(char *proc_name, unsigned int arity, char args[10][256], Return
     decltl = tmp;
   }
 
-  cntr++;
-
-  if (rettype == INT32) {
-    defineAlloca();
-    Factor f;
-    f.type = LOCAL_VAR;
-    f.val = cntr - 1;
-    tmp->retval = f;
-  }
-
+  cntr = arity + 1;
 
   for (i=0;i<arity;i++){
     defineAlloca();
@@ -714,10 +686,11 @@ void doProcedure(char *proc_name, unsigned int arity, char args[10][256], Return
 
     defineStore(arg1, arg2);
 
-    insert(args[i], LOCAL_VAR, cntr - 1, VOID);
+    insert(args[i], LOCAL_VAR, cntr - 1);
   }
 
 }
+
 
 /* main手続き／関数の実装 */
 void doMainProcedure() {
@@ -729,11 +702,6 @@ void doMainProcedure() {
   tmp = (Fundecl *)malloc(sizeof(Fundecl));
   strcpy(tmp->fname, "main");
   tmp->rettype = INT32;
-
-  Factor f;
-  f.type = CONSTANT;
-  f.val = 0;
-  tmp->retval = f;
 
   if (decltl == NULL){
     if (declhd == NULL) {

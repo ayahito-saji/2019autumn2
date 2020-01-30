@@ -2,8 +2,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "llvm.h"
 #include "symbol_table.h"
+#include "llvm.h"
 
 extern int yylineno;
 extern char *yytext;
@@ -12,7 +12,6 @@ typedef struct {
   char *var_name;
   int reg;
   Scope scope;
-  ReturnType rettype;
 
 } SymbolTable;
 
@@ -23,7 +22,7 @@ int is_local_variable = 0;
 
 extern int cntr;
 
-void insert(char *vn, Scope scope, int reg, ReturnType rettype)
+void insert(char *vn, Scope scope, int reg)
 {
   int i;
   char *var_name;
@@ -51,7 +50,6 @@ void insert(char *vn, Scope scope, int reg, ReturnType rettype)
   } else {
     symbol_table[symbol_table_length].scope = scope;
     symbol_table[symbol_table_length].reg = reg;
-    symbol_table[symbol_table_length].rettype = rettype;
   }
 
   if (scope == PROC_NAME) {
@@ -169,4 +167,6 @@ void delete()
   }
   fprintf(stderr, "\n");
   */
+
+
 }
