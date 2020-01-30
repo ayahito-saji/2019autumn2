@@ -1142,10 +1142,10 @@ typedef enum {
 } Cmptype;
 \end{lstlisting}
 
-実験5では手続きのみ用いるため手続きの返り値は存在しない．一方LLVMでは関数として記述するためmain関数はintの返り値を持ち，それ以外の手続きに相当する関数はvoidの返り値を持っている．
-そこで，LLVMの関数を定義する構造体の返り値の型を列挙型で定義する．ソースコード\ref{lst:ex5:llvm.h:cmptype}に示す．
+実験5では手続きのみ用いるため手続きの返り値は存在しない．一方LLVMでは関数として記述するためmain関数はintの返り値を持ち，それ以外の手続きに相当する関数はvoidの返り値を持っている．\cite{compiler2}
+そこで，LLVMの関数を定義する構造体の返り値の型を列挙型で定義する．ソースコード\ref{lst:ex5:llvm.h:returntype}に示す．
 
-\begin{lstlisting}[caption=LLVMコマンドを表す列挙型LLVMcommand,label=lst:ex5:llvm.h:cmptype]
+\begin{lstlisting}[caption=ReturnTypeの定義,label=lst:ex5:llvm.h:returntype]
 typedef enum {
   VOID,
   INT32
@@ -1322,8 +1322,8 @@ LabelSyntax popLabelSyntax() {
 
 この関数は，\verb#Factor#および書き込むためのファイルポインタ\verb#fp#を受取って，そこに上記のように\verb#Factor#を書き出す処理を行う．
 
-これの定義をソースコード\ref{lst:ex4:llvm.c:displayFactor}に示す．
-\begin{lstlisting}[caption=displayFactor関数の定義,label=lst:ex4:llvm.c:displayFactor]
+これの定義をソースコード\ref{lst:ex5:llvm.c:displayFactor}に示す．
+\begin{lstlisting}[caption=displayFactor関数の定義,label=lst:ex5:llvm.c:displayFactor]
 /* Factorの表示 */
 void displayFactor(FILE *fp, Factor factor ){
   switch(factor.type){
@@ -1719,6 +1719,7 @@ extern LabelSyntaxStack lstack;
 
 \subsubsection{program構文規則}
 \verb#program#規則では，プログラムの開始時に\verb#useRead#および\verb#useWrite#を0に設定するように定義した．
+また，\verb#lstack#を新たに初期化した．\verb#outputCode#をプログラムをパース時に呼び出して，LLVMコードを出力した．
 このプログラムをソースコード\ref{lst:ex5:parser.y:rules:program}に示す．
 \begin{lstlisting}[caption=programの処理,label=lst:ex5:parser.y:rules:program]
 program
@@ -1731,6 +1732,35 @@ program
         ;
 \end{lstlisting}
 \subsubsection{if文の実装}
+if文はelse節がない場合，次のような構造になっている．
+\begin{enumerate}
+  \item {条件結果を評価する}
+  \item {結果が真であれば[ラベル1]へ，偽であれば[ラベル2]へジャンプする}
+  \item {[ラベル1]を定義する}
+  \item {真の場合のstatement}
+  \item {[ラベル2]にジャンプする}
+  \item {[ラベル2]を定義する}
+\end{enumerate}
+
+else節がある場合，次のような構造になっている．
+\begin{enumerate}
+  \item {条件結果を評価する}
+  \item {結果が真であれば[ラベル1]へ，偽であれば[ラベル2]へジャンプする}
+  \item {[ラベル1]を定義する}
+  \item {真の場合のstatement}
+  \item {[ラベル3]にジャンプする}
+  \item {偽の場合のstatement}
+  \item {[ラベル3]にジャンプする}
+  \item {[ラベル3]を定義する}
+\end{enumerate}
+
+if文では，(2)で出現する[ラベル1]および[ラベル2]はその後定義されるラベルを示す必要があり，
+(5)または(7)で出現する[ラベル2]または[ラベル3]はその後定義されるラベルを示す必要がある．
+したがって，(2)の条件付きジャンプ命令，(5)および(7)のジャンプ命令をそれぞれ\verb#br1#，\verb#br2#，\verb#br3#としてポインタとして保持しておき，
+ラベル定義時にポインタを参照してその後にラベルを代入するように実装した．
+
+また，else文がある場合[br3]まで定義されている（すなわち，else文がなければbr3が示すポインタはNULLである）ことを利用して，真の場合のstatementが実行された後のジャンプ先を決定する．
+
 このプログラムをソースコード\ref{lst:ex5:parser.y:rules:if_statement}に示す．
 \begin{lstlisting}[caption=if文の処理,label=lst:ex5:parser.y:rules:if_statement]
 if_statement
@@ -1742,7 +1772,7 @@ if_statement
             lsyntax.args.If.br2 = NULL;
             lsyntax.args.If.br3 = NULL;
             pushLabelSyntax(lsyntax);
-            displayLabelSyntax(lsyntax);
+            // displayLabelSyntax(lsyntax);
           } THEN {
             LabelSyntax lsyntax = popLabelSyntax();
             lsyntax.args.If.br1->args.brcond.arg2 = defineLabel()->args.label.l;
@@ -1776,6 +1806,24 @@ else_statement
         ;
 \end{lstlisting}
 \subsubsection{while文の実装}
+
+while文は次のような構造になっている．
+\begin{enumerate}
+  \item {[ラベル1]にジャンプする}
+  \item {[ラベル1]を定義する}
+  \item {条件結果を評価する}
+  \item {結果が真であれば[ラベル2]へ，偽であれば[ラベル3]へジャンプする}
+  \item {[ラベル2]を定義する}
+  \item {繰り返し実行されるstatement}
+  \item {[ラベル1]にジャンプする}
+  \item {[ラベル3]を定義する}
+\end{enumerate}
+
+for文では，(1)で出現する[ラベル1]および(4)で出現する[ラベル2]，[ラベル3]はその後定義されるラベルを示す必要があるため，バックパッチ処理を必須とする．
+また，(2)で定義したラベル1を，(7)で参照する必要がある．
+したがって，(1)のジャンプ命令，(4)の条件付きジャンプ命令をそれぞれ\verb#br1#，\verb#br2#としてポインタとして保持しておき，
+(2)で定義したラベルのレジスタ番号も後から参照する必要があるから\verb#label1#に保持しておくようにした．
+
 このプログラムをソースコード\ref{lst:ex5:parser.y:rules:while_statement}に示す．
 \begin{lstlisting}[caption=while文の処理,label=lst:ex5:parser.y:rules:while_statement]
 while_statement
@@ -1808,6 +1856,26 @@ while_statement
         ;
 \end{lstlisting}
 \subsubsection{for文の実装}
+
+for文は次のような構造になっている．
+\begin{enumerate}
+  \item {[変数]に[初期値]を代入する}
+  \item {[ラベル1]へジャンプする}
+  \item {[ラベル1]を定義する}
+  \item {[終了値]以下か比較する}
+  \item {結果が真であれば[ラベル2]へ，偽であれば[ラベル3]へジャンプする}
+  \item {[ラベル2]を定義する}
+  \item {繰り返し実行されるstatement}
+  \item {[変数]に1を追加する}
+  \item {[ラベル1]にジャンプする}
+  \item {[ラベル3]を定義する}
+\end{enumerate}
+
+for文では，(2)で出現する[ラベル1]および(5)で出現する[ラベル2]，[ラベル3]はその後定義されるラベルを示す必要があるため，バックパッチ処理を必須とする．
+また，(1)で定義した[変数]を(8)で参照する必要があり，(3)で定義した[ラベル1]を(9)で参照する必要がある．
+したがって，(2)のジャンプ命令および(5)の条件付きジャンプ命令をそれぞれ\verb#br1#，\verb#br2#としてポインタとして保持しておき，
+(1)で定義した変数と(3)で定義したラベルも後から参照する必要があるから\verb#var#および\verb#label1#として保持しておくようにした．
+
 このプログラムをソースコード\ref{lst:ex5:parser.y:rules:for_statement}に示す．
 \begin{lstlisting}[caption=for文の処理,label=lst:ex5:parser.y:rules:for_statement]
 
@@ -1868,6 +1936,7 @@ for_statement
         ;
 \end{lstlisting}
 \subsubsection{呼び出し手続き文の実装}
+手続き呼び出しでは，\verb#defineCall#関数を\verb#pop#した\verb#factor#を用いて呼び出すように実装した．
 このプログラムをソースコード\ref{lst:ex5:parser.y:rules:proc_call_name}に示す．
 \begin{lstlisting}[caption=手続き呼び出しの処理,label=lst:ex5:parser.y:rules:proc_call_name]
 proc_call_statement
@@ -1884,6 +1953,8 @@ proc_call_name
         ;
 \end{lstlisting}
 \subsubsection{read文およびwrite文の実装}
+\verb#read#文では，変数を参照した後\verb#defineScanf#を実行して標準入力を行なった．
+\verb#write#文では，出力する\verb#factor#を\verb#pop#して，それを引数として\verb#definePrintf#を実行して標準出力を行なった．
 このプログラムをソースコード\ref{lst:ex5:parser.y:rules:read_and_write_statement}に示す．
 \begin{lstlisting}[caption=read文およびwrite文の処理,label=lst:ex5:parser.y:rules:read_and_write_statement]
 read_statement
@@ -1905,6 +1976,8 @@ write_statement
         ;
 \end{lstlisting}
 \subsubsection{condition句の実装}
+\verb#condition#ルールでは，\verb#fstack#から２つの\verb#Factor#をpopし，\verb#Icmp#命令を作成する関数を呼び出した．
+比較の種別が異なるため，\verb#defineIcmp#命令の第一引数の列挙型がそれぞれ異なるようにした．
 このプログラムをソースコード\ref{lst:ex5:parser.y:rules:condition}に示す．
 \begin{lstlisting}[caption=condition句の処理,label=lst:ex5:parser.y:rules:condition]
 condition
@@ -1947,6 +2020,111 @@ condition
         ;
 \end{lstlisting}
 
+上記によってPL-0言語が正しく実行できるように実装できたので，\verb#Make#コマンドを用いてソースコードのコンパイルを行った．
+そして生成された\verb#parser#プログラムを用いて，サンプルプログラムとして実験当初に与えられたプログラムをコンパイルした．
+サンプルプログラム\verb#pl0a.p#，\verb#pl0b.p#，\verb#pl0c.p#，\verb#pl0d.p#をソースコード\ref{lst:ex5:pl0a.p}，ソースコード\ref{lst:ex5:pl0b.p}，ソースコード\ref{lst:ex5:pl0c.p}，ソースコード\ref{lst:ex5:pl0d.p}に示す．
+
+\verb#pl0a.p#は，10から1までを順に足した結果をsumに代入するプログラムで，while文を用いてnを10から1まで繰り返している．
+\begin{lstlisting}[caption=pl0a.p,label=lst:ex5:pl0a.p]
+program PL0A;
+var n, sum;
+begin
+    n := 10;
+    sum := 0;
+    while n > 0 do
+    begin
+        sum := sum + n;
+        n := n - 1
+    end;
+    write(sum)
+end.
+\end{lstlisting}
+
+\verb#pl0b.p#は，入力された値n以下の素数を列挙するプログラムである．
+xに判定する値が入力されて，prime手続きが呼び出されると．ローカル変数mでxが割り切れるか順に試していき
+割り切れた時mの値が1であれば素数と判定している．
+\begin{lstlisting}[caption=pl0b.p,label=lst:ex5:pl0b.p]
+program PL0B;
+var n, x;
+procedure prime;
+var m;
+begin
+   m := x div 2;
+   while x <> (x div m) * m do
+      m := m - 1;
+   if m = 1 then
+      write(x)
+end;
+begin
+   read(n);
+   while 1 < n do
+   begin
+      x := n;
+      prime;
+      n := n - 1
+   end
+end.
+\end{lstlisting}
+
+\verb#pl0c.p#は，\verb#pl0b.p#と同じく入力された値n以下の素数を列挙するプログラムである．
+xに判定する値が入力されて，prime手続きが呼び出されると．ローカル変数mでxが割り切れるか順に試していき
+割り切れた時mの値が1であれば素数と判定している．
+\verb#pl0b.p#と異なる点は，繰り返しがwhile文ではなくfor文で記述されていることである．
+これによってより可読性が向上している．
+\begin{lstlisting}[caption=pl0c.p,label=lst:ex5:pl0c.p]
+program PL0C;
+var n, x, i;
+procedure prime;
+var m;
+begin
+   m := x div 2;
+   while x <> (x div m) * m do
+      m := m - 1;
+   if m = 1 then
+      write(x)
+end;
+begin
+   read(n);
+   for i := 2 to n do
+   begin
+      x := i;
+      prime;
+   end
+end.
+\end{lstlisting}
+
+\verb#pl0d.p#は，入力された値nの階乗を出力するプログラムである．
+fact手続きは再帰的位に呼び出されるように設計されているのが特徴である．
+LLVMコード上では，関数呼び出しで手続き呼び出しを実装しているため正しく呼び出し元に返ってくることができる．
+\begin{lstlisting}[caption=pl0d.p,label=lst:ex5:pl0d.p]
+program PL0D;
+var n, temp;
+procedure fact;
+var m;
+begin
+    if n <= 1 then
+        temp:=1
+    else
+    begin
+        m:=n;
+        n:=n-1;
+        fact;
+        temp:=temp*m
+    end
+end;
+begin
+    read(n);
+    fact;
+    write(temp);
+end.
+\end{lstlisting}
+
+これらのプログラムをソースコード\verb#lst:ex5:parser#に示されるコマンドをそれぞれ用いてコンパイルした後，出力される\verb#result.ll#を\verb#lli#コマンドで実行した．
+\begin{lstlisting}[caption=parserコマンド,label=lst:ex5:parser]
+./parser ./samples/pl0a.p
+lli result.ll
+\end{lstlisting}
+
 \subsection{実験結果}
 プログラムの\verb#pl0a.p#の実行結果の\verb#result.ll#をソースコード\ref{lst:ex5:result.ll:pl0a.p}に示す．
 \begin{lstlisting}[caption=condition句の処理,label=lst:ex5:result.ll:pl0a.p]
@@ -1979,6 +2157,8 @@ br label %2
 ret i32 0
 }
 \end{lstlisting}
+これを\verb#lli#コマンドを用いて実行すると，結果は表示されなかったがエラーも発生しなかった．
+\verb#write#命令がないため何も出力されないのが正しいゆえにこのプログラムは正しく実行されたことがわかった．
 
 プログラムの\verb#pl0b.p#の実行結果の\verb#result.ll#をソースコード\ref{lst:ex5:result.ll:pl0b.p}に示す．
 \begin{lstlisting}[caption=condition句の処理,label=lst:ex5:result.ll:pl0b.p]
@@ -2048,6 +2228,16 @@ br label %3
 ; <label>:10:
 ret i32 0
 }
+\end{lstlisting}
+これを\verb#lli#コマンドを用いて実行すると，ソースコード\ref{lst:ex5:result.ll:pl0b.p-result}のようになった．
+例では10を入力したものである．正しく10以下の素数が出力されていることがわかったため，プログラムは正しく動作していることが確かめられた．
+このプログラムでは，while文を用いてnから2まで繰り返すため，素数は降順に出力されていた．
+\begin{lstlisting}[caption=pl0b.pから出力されたresult.llの実行結果,label=lst:ex5:result.ll:pl0b.p-result]
+10
+7
+5
+3
+2
 \end{lstlisting}
 
 プログラムの\verb#pl0c.p#の実行結果の\verb#result.ll#をソースコード\ref{lst:ex5:result.ll:pl0c.p}に示す．
@@ -2122,7 +2312,16 @@ br label %3
 ret i32 0
 }
 \end{lstlisting}
-
+これを\verb#lli#コマンドを用いて実行すると，ソースコード\ref{lst:ex5:result.ll:pl0c.p-result}のようになった．
+例では10を入力したものである．正しく10以下の素数が出力されていることがわかったため，プログラムは正しく動作していることが確かめられた．
+このプログラムでは，for文を用いて2からnまで繰り返すため，素数は昇順に正しく出力されていた．
+\begin{lstlisting}[caption=pl0b.pから出力されたresult.llの実行結果,label=lst:ex5:result.ll:pl0c.p-result]
+10
+2
+3
+5
+7
+\end{lstlisting}
 
 プログラムの\verb#pl0d.p#の実行結果の\verb#result.ll#をソースコード\ref{lst:ex5:result.ll:pl0d.p}に示す．
 \begin{lstlisting}[caption=condition句の処理,label=lst:ex5:result.ll:pl0d.p]
@@ -2169,6 +2368,70 @@ call void @fact()
 ret i32 0
 }
 \end{lstlisting}
+これを\verb#lli#コマンドを用いて実行すると，ソースコード\ref{lst:ex5:result.ll:pl0d.p-result}のようになった．
+例では5を入力したものである．正しく5の階乗である120が出力されていることがわかったため，プログラムは正しく動作していることが確かめられた．
+\begin{lstlisting}[caption=pl0b.pから出力されたresult.llの実行結果,label=lst:ex5:result.ll:pl0d.p-result]
+5
+120
+\end{lstlisting}
+よって，上記の\verb#pl0a.p#，\verb#pl0b.p#，\verb#pl0c.p#，\verb#pl0d.p#の全てのプログラムでエラーが発生せずに，予期した通りに正しく動作することが確かめられた．
 \subsection{考察}
+この\verb#PL-0#言語には\verb#break#文および\verb#continue#文が存在しない．ここで，\verb#break#文は繰り返し処理を途中で終了して抜け出す処理をおこな会う命令であり，\verb#continue#は，繰り返し処理を途中で処理，次の繰り返しを行う命令である．
+この命令を\verb#PL-0#で実装するにはどうすれば良いか考察してみる．
+
+この考察では，\verb#while#文中において，\verb#break#文および\verb#continue#文がどのように動作するのか考察する．
+\verb#for#文も実質同様に考えられる．
+
+\verb#while#文は次のような構造になっている．
+\begin{enumerate}
+  \item {[ラベル1]にジャンプする}
+  \item {[ラベル1]を定義する}
+  \item {条件結果を評価する}
+  \item {結果が真であれば[ラベル2]へ，偽であれば[ラベル3]へジャンプする}
+  \item {[ラベル2]を定義する}
+  \item {繰り返し実行される\verb#statement#(\verb#break#文が実行された時，[ラベル3]にジャンプし，\verb#continue#文が実行された時[ラベル1]にジャンプする)}
+  \item {[ラベル1]にジャンプする}
+  \item {[ラベル3]を定義する}
+\end{enumerate}
+
+(6)で\verb#break#文によって出力される無条件ジャンプ命令は[ラベル3]のレジスタを後からバックパッチ処理で当てはめなければならない．
+すなわち，(8)で[ラベル3]を定義した時点で，無条件ジャンプ命令を参照して，レジスタを設定する必要がある．
+
+(6)で\verb#continue#文によって出力される無条件ジャンプ命令は[ラベル1]を参照する．
+すなわち，(2)で[ラベル1]を定義した時点で，[ラベル1]のレジスタ番号を保持しておく必要がある．
+
+\verb#continue#文は[ラベル1]のレジスタ番号を保持しておく必要があるが，\verb#PL-0#を実装した時点でこれは保持されている．
+なぜなら，(7)にて[ラベル1]にジャンプする命令が同様に存在するためである．
+
+一方\verb#break#文は，[ラベル3]のバックパッチ処理のために，\verb#break#文が定義した無条件ジャンプ命令を全て保持しておかなければならない．
+したがって，\verb#while#の\verb#LabelSyntax#に\verb#LLVMcode#のポインタを持つ線形リストまたは配列を実装しておかなければならない．
+
+また，両方に共通する課題が存在する．\cite{compiler1}
+
+\verb#break#文，\verb#continue#文のいずれも，一番ネスト構造の内側の\verb#while#文または\verb#for#に作用する．
+したがって，\verb#LabelSyntaxStack#を最後尾から検索していき，\verb#while#または\verb#for#を見つけたら，その構造体に対して処理を行う必要がある．
+例えば，ソースコード\ref{lst:ex5:kosathu.p}に記載したプログラム中に\verb#break#文が存在するが，これに一番近い\verb#LabelSyntax#は\verb#if#文である．しかし，\verb#break#文はさらにその外側の\verb#while#文に対して動作する．
+
+\begin{lstlisting}[caption=pl0a.p,label=lst:ex5:kosathu.p]
+program KOSATSU;
+var n;
+begin
+    while 1 do
+    begin
+      n := n + 1;
+      if n >= 10 then break;
+    end;
+    write(n)
+end.
+\end{lstlisting}
+
+以上のように実装することで，正しく\verb#break#文および\verb#continue#文を実装可能であることがわかった．
+
+また既存のプログラムでもたまに感じることなのだが，\verb#break#文および\verb#continue#文は一番近いネストからしか抜けることができない．しかし，n番目に近いネストから抜けるように実装することも可能である．\verb#break(1)#のように，引数を取ることで，より汎用的な処理を行う\verb#break#文を実装することができるためである．
+
+\begin{thebibliography}{9}
+  \bibitem{compiler1} 湯淺 太一, 情報系教科書シリーズ コンパイラ, 2014.
+  \bibitem{compiler2} 柏木 餅子、風薬, きつねさんでもわかるLLVM, 2013.
+\end{thebibliography}
 
 \end{document}
