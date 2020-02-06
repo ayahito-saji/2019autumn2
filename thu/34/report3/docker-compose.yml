@@ -1,0 +1,7 @@
+version: '2'
+services:
+  docker:
+    build: .
+    command: sh -c 'uplatex ./main.tex && dvipdfmx ./main.dvi'
+    volumes:
+      - .:/workdir
